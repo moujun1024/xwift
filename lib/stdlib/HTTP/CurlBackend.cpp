@@ -1,4 +1,5 @@
 #include "xwift/stdlib/HTTP/HTTPPlugin.h"
+#include "xwift/Basic/Error.h"
 #include <curl/curl.h>
 #include <sstream>
 #include <cstring>
@@ -16,19 +17,19 @@ public:
     curl_global_cleanup();
   }
   
-  Response get(const std::string& url) override {
+  Result<Response> get(const std::string& url) override {
     return sendRequest("GET", url);
   }
   
-  Response post(const std::string& url, const std::string& data) override {
+  Result<Response> post(const std::string& url, const std::string& data) override {
     return sendRequest("POST", url, data);
   }
   
-  Response put(const std::string& url, const std::string& data) override {
+  Result<Response> put(const std::string& url, const std::string& data) override {
     return sendRequest("PUT", url, data);
   }
   
-  Response deleteRequest(const std::string& url) override {
+  Result<Response> deleteRequest(const std::string& url) override {
     return sendRequest("DELETE", url);
   }
   
@@ -84,16 +85,14 @@ private:
     return totalSize;
   }
   
-  Response sendRequest(const std::string& method, const std::string& url, const std::string& data = "") {
+  Result<Response> sendRequest(const std::string& method, const std::string& url, const std::string& data = "") {
     Response response;
     response.statusCode = 0;
     response.error = HTTPError::None;
     
     CURL* curl = curl_easy_init();
     if (!curl) {
-      response.statusCode = -1;
-      response.error = HTTPError::ConnectionFailed;
-      return response;
+      return Result<Response>::err(Error::network("Failed to initialize CURL"));
     }
     
     std::string responseBody;
@@ -140,15 +139,14 @@ private:
     CURLcode res = curl_easy_perform(curl);
     
     if (res != CURLE_OK) {
-      response.statusCode = -1;
       if (res == CURLE_OPERATION_TIMEDOUT) {
-        response.error = HTTPError::Timeout;
+        return Result<Response>::err(Error::network("Request timeout"));
       } else if (res == CURLE_URL_MALFORMAT) {
-        response.error = HTTPError::InvalidURL;
+        return Result<Response>::err(Error::network("Invalid URL"));
       } else if (res == CURLE_SSL_CONNECT_ERROR) {
-        response.error = HTTPError::SSLFailed;
+        return Result<Response>::err(Error::network("SSL connection failed"));
       } else {
-        response.error = HTTPError::ConnectionFailed;
+        return Result<Response>::err(Error::network("Request failed"));
       }
     } else {
       long statusCode;
@@ -163,7 +161,7 @@ private:
     }
     
     curl_easy_cleanup(curl);
-    return response;
+    return Result<Response>::ok(response);
   }
 };
 

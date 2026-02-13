@@ -2,6 +2,7 @@
 
 #include "xwift/Plugin/Plugin.h"
 #include "xwift/stdlib/HTTP/HTTP.h"
+#include "xwift/Basic/Result.h"
 #include <memory>
 
 namespace xwift {
@@ -11,10 +12,10 @@ class IHTTPBackend {
 public:
   virtual ~IHTTPBackend() = default;
   
-  virtual Response get(const std::string& url) = 0;
-  virtual Response post(const std::string& url, const std::string& data) = 0;
-  virtual Response put(const std::string& url, const std::string& data) = 0;
-  virtual Response deleteRequest(const std::string& url) = 0;
+  virtual Result<Response> get(const std::string& url) = 0;
+  virtual Result<Response> post(const std::string& url, const std::string& data) = 0;
+  virtual Result<Response> put(const std::string& url, const std::string& data) = 0;
+  virtual Result<Response> deleteRequest(const std::string& url) = 0;
   virtual void setHeader(const std::string& key, const std::string& value) = 0;
   virtual void setTimeout(int milliseconds) = 0;
   

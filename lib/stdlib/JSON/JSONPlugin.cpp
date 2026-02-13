@@ -1,18 +1,27 @@
 #include "xwift/stdlib/JSON/JSONPlugin.h"
 #include "xwift/stdlib/JSON/JSON.h"
+#include "xwift/Basic/Error.h"
 
 namespace xwift {
 namespace json {
 
 class NativeJSONEngine : public IJSONEngine {
 public:
-  JSONValue parse(const std::string& jsonStr) override {
+  Result<JSONValue> parse(const std::string& jsonStr) override {
     JSONParser parser;
-    return parser.parse(jsonStr);
+    JSONValue result = parser.parse(jsonStr);
+    if (parser.hasError()) {
+      return Result<JSONValue>::err(Error::json(parser.getError()));
+    }
+    return Result<JSONValue>::ok(result);
   }
   
-  std::string stringify(const JSONValue& value) override {
-    return value.toString();
+  Result<std::string> stringify(const JSONValue& value) override {
+    try {
+      return Result<std::string>::ok(value.toString());
+    } catch (const std::exception& e) {
+      return Result<std::string>::err(Error::json(e.what()));
+    }
   }
   
   std::string getName() const override {

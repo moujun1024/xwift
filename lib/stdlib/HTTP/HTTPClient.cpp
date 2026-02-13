@@ -1,6 +1,7 @@
 #include "xwift/stdlib/HTTP/HTTPClient.h"
 #include "xwift/stdlib/HTTP/HTTPPlugin.h"
 #include "xwift/Plugin/Plugin.h"
+#include "xwift/Basic/Error.h"
 #include <sstream>
 #include <iomanip>
 
@@ -25,44 +26,32 @@ HTTPClient::HTTPClient() {
 
 HTTPClient::~HTTPClient() = default;
 
-Response HTTPClient::get(const std::string& url) {
+Result<Response> HTTPClient::get(const std::string& url) {
   if (backend) {
     return backend->get(url);
   }
-  Response response;
-  response.statusCode = -1;
-  response.error = HTTPError::Unknown;
-  return response;
+  return Result<Response>::err(Error::http("HTTP backend not initialized"));
 }
 
-Response HTTPClient::post(const std::string& url, const std::string& data) {
+Result<Response> HTTPClient::post(const std::string& url, const std::string& data) {
   if (backend) {
     return backend->post(url, data);
   }
-  Response response;
-  response.statusCode = -1;
-  response.error = HTTPError::Unknown;
-  return response;
+  return Result<Response>::err(Error::http("HTTP backend not initialized"));
 }
 
-Response HTTPClient::put(const std::string& url, const std::string& data) {
+Result<Response> HTTPClient::put(const std::string& url, const std::string& data) {
   if (backend) {
     return backend->put(url, data);
   }
-  Response response;
-  response.statusCode = -1;
-  response.error = HTTPError::Unknown;
-  return response;
+  return Result<Response>::err(Error::http("HTTP backend not initialized"));
 }
 
-Response HTTPClient::deleteRequest(const std::string& url) {
+Result<Response> HTTPClient::deleteRequest(const std::string& url) {
   if (backend) {
     return backend->deleteRequest(url);
   }
-  Response response;
-  response.statusCode = -1;
-  response.error = HTTPError::Unknown;
-  return response;
+  return Result<Response>::err(Error::http("HTTP backend not initialized"));
 }
 
 void HTTPClient::setHeader(const std::string& key, const std::string& value) {

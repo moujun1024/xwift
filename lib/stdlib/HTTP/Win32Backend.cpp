@@ -1,4 +1,5 @@
 #include "xwift/stdlib/HTTP/HTTPPlugin.h"
+#include "xwift/Basic/Error.h"
 #include <windows.h>
 #include <winhttp.h>
 
@@ -32,19 +33,19 @@ public:
     }
   }
   
-  Response get(const std::string& url) override {
+  Result<Response> get(const std::string& url) override {
     return sendRequest("GET", url);
   }
   
-  Response post(const std::string& url, const std::string& data) override {
+  Result<Response> post(const std::string& url, const std::string& data) override {
     return sendRequest("POST", url, data);
   }
   
-  Response put(const std::string& url, const std::string& data) override {
+  Result<Response> put(const std::string& url, const std::string& data) override {
     return sendRequest("PUT", url, data);
   }
   
-  Response deleteRequest(const std::string& url) override {
+  Result<Response> deleteRequest(const std::string& url) override {
     return sendRequest("DELETE", url);
   }
   
@@ -65,15 +66,13 @@ private:
   int timeout;
   std::map<std::string, std::string> headers;
   
-  Response sendRequest(const std::string& method, const std::string& url, const std::string& data = "") {
+  Result<Response> sendRequest(const std::string& method, const std::string& url, const std::string& data = "") {
     Response response;
     response.statusCode = 0;
     response.error = HTTPError::None;
     
     if (!hSession) {
-      response.statusCode = -1;
-      response.error = HTTPError::ConnectionFailed;
-      return response;
+      return Result<Response>::err(Error::network("Failed to initialize WinHTTP session"));
     }
     
     int urlLen = MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, NULL, 0);
@@ -94,9 +93,7 @@ private:
     urlComp.lpszUrlPath = &urlPath[0];
     
     if (!WinHttpCrackUrl(wUrl.c_str(), (DWORD)wUrl.length(), 0, &urlComp)) {
-      response.statusCode = -1;
-      response.error = HTTPError::InvalidURL;
-      return response;
+      return Result<Response>::err(Error::network("Invalid URL"));
     }
     
     INTERNET_PORT port = urlComp.nPort;
@@ -110,9 +107,7 @@ private:
     
     hConnect = WinHttpConnect(hSession, hostName.c_str(), port, 0);
     if (!hConnect) {
-      response.statusCode = -1;
-      response.error = HTTPError::ConnectionFailed;
-      return response;
+      return Result<Response>::err(Error::network("Failed to connect to server"));
     }
     
     int methodLen = MultiByteToWideChar(CP_UTF8, 0, method.c_str(), -1, NULL, 0);
@@ -130,9 +125,7 @@ private:
     );
     
     if (!hRequest) {
-      response.statusCode = -1;
-      response.error = HTTPError::ConnectionFailed;
-      return response;
+      return Result<Response>::err(Error::network("Failed to create HTTP request"));
     }
     
     std::wstring headersStr;
@@ -165,17 +158,13 @@ private:
     
     if (!result) {
       WinHttpCloseHandle(hRequest);
-      response.statusCode = -1;
-      response.error = HTTPError::ConnectionFailed;
-      return response;
+      return Result<Response>::err(Error::network("Failed to send HTTP request"));
     }
     
     result = WinHttpReceiveResponse(hRequest, NULL);
     if (!result) {
       WinHttpCloseHandle(hRequest);
-      response.statusCode = -1;
-      response.error = HTTPError::ConnectionFailed;
-      return response;
+      return Result<Response>::err(Error::network("Failed to receive HTTP response"));
     }
     
     DWORD statusCode = 0;
@@ -259,7 +248,7 @@ private:
     response.body = body;
     
     WinHttpCloseHandle(hRequest);
-    return response;
+    return Result<Response>::ok(response);
   }
   
   std::string getName() const override {

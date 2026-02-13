@@ -1,6 +1,7 @@
 #include "xwift/stdlib/JSON/JSONClient.h"
 #include "xwift/stdlib/JSON/JSONPlugin.h"
 #include "xwift/Plugin/Plugin.h"
+#include "xwift/Basic/Error.h"
 
 namespace xwift {
 namespace json {
@@ -21,18 +22,18 @@ JSONClient::JSONClient() {
   }
 }
 
-JSONValue JSONClient::parse(const std::string& jsonStr) {
+Result<JSONValue> JSONClient::parse(const std::string& jsonStr) {
   if (engine) {
     return engine->parse(jsonStr);
   }
-  return JSONValue();
+  return Result<JSONValue>::err(Error::json("JSON engine not initialized"));
 }
 
-std::string JSONClient::stringify(const JSONValue& value) {
+Result<std::string> JSONClient::stringify(const JSONValue& value) {
   if (engine) {
     return engine->stringify(value);
   }
-  return "";
+  return Result<std::string>::err(Error::json("JSON engine not initialized"));
 }
 
 }

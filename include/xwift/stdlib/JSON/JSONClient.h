@@ -2,6 +2,7 @@
 
 #include "xwift/stdlib/JSON/JSONPlugin.h"
 #include "xwift/Plugin/Plugin.h"
+#include "xwift/Basic/Result.h"
 #include <memory>
 
 #ifdef _WIN32
@@ -18,8 +19,8 @@ public:
   JSONClient();
   ~JSONClient() = default;
   
-  JSONValue parse(const std::string& jsonStr);
-  std::string stringify(const JSONValue& value);
+  Result<JSONValue> parse(const std::string& jsonStr);
+  Result<std::string> stringify(const JSONValue& value);
   
 private:
   std::shared_ptr<IJSONEngine> engine;

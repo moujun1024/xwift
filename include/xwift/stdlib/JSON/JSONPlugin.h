@@ -2,6 +2,7 @@
 
 #include "xwift/Plugin/Plugin.h"
 #include "xwift/stdlib/JSON/JSON.h"
+#include "xwift/Basic/Result.h"
 #include <memory>
 
 namespace xwift {
@@ -11,8 +12,8 @@ class IJSONEngine {
 public:
   virtual ~IJSONEngine() = default;
   
-  virtual JSONValue parse(const std::string& jsonStr) = 0;
-  virtual std::string stringify(const JSONValue& value) = 0;
+  virtual Result<JSONValue> parse(const std::string& jsonStr) = 0;
+  virtual Result<std::string> stringify(const JSONValue& value) = 0;
   
   virtual std::string getName() const = 0;
   virtual std::string getVersion() const = 0;
