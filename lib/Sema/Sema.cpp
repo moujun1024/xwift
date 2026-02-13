@@ -283,39 +283,8 @@ bool Sema::visit(Decl* decl) {
     return false;
   }
   
-  if (auto func = dynamic_cast<FuncDecl*>(decl)) {
-    return visit(func);
-  }
-  
-  if (auto var = dynamic_cast<VarDeclStmt*>(decl)) {
-    return visit(var);
-  }
-  
-  if (auto import = dynamic_cast<ImportDecl*>(decl)) {
-    return true;
-  }
-  
-  if (auto cls = dynamic_cast<ClassDecl*>(decl)) {
-    return visit(cls);
-  }
-  
-  if (auto st = dynamic_cast<StructDecl*>(decl)) {
-    return visit(st);
-  }
-  
-  if (auto prop = dynamic_cast<PropertyDecl*>(decl)) {
-    return visit(prop);
-  }
-  
-  if (auto method = dynamic_cast<MethodDecl*>(decl)) {
-    return visit(method);
-  }
-  
-  if (auto ctor = dynamic_cast<ConstructorDecl*>(decl)) {
-    return visit(ctor);
-  }
-  
-  return true;
+  decl->accept(*this);
+  return !Diags.hasErrors();
 }
 
 bool Sema::visit(FuncDecl* func) {
@@ -1149,6 +1118,10 @@ bool Sema::visit(ConstructorDecl* ctor) {
   
   exitScope();
   
+  return true;
+}
+
+bool Sema::visit(ImportDecl* import) {
   return true;
 }
 

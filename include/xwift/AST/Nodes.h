@@ -33,13 +33,31 @@ using ExprPtr = std::unique_ptr<Expr>;
 class Decl : public Stmt {
 public:
   virtual ~Decl() = default;
+  virtual void accept(class DeclVisitor& visitor) = 0;
 };
 using DeclPtr = std::unique_ptr<Decl>;
+
+class DeclVisitor {
+public:
+  virtual ~DeclVisitor() = default;
+  virtual bool visit(FuncDecl* func) = 0;
+  virtual bool visit(VarDeclStmt* var) = 0;
+  virtual bool visit(ClassDecl* cls) = 0;
+  virtual bool visit(StructDecl* st) = 0;
+  virtual bool visit(PropertyDecl* prop) = 0;
+  virtual bool visit(MethodDecl* method) = 0;
+  virtual bool visit(ConstructorDecl* ctor) = 0;
+  virtual bool visit(ImportDecl* import) = 0;
+};
 
 class ImportDecl : public Decl {
 public:
   std::string ModuleName;
   ImportDecl(const std::string& name) : ModuleName(name) {}
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
+  }
 };
 
 class IntegerLiteralExpr : public Expr {
@@ -148,6 +166,10 @@ public:
   bool IsMutable;
   VarDeclStmt(const std::string& name, const std::string& type, ExprPtr init, bool mut)
     : Name(name), Type(type), Init(std::move(init)), IsMutable(mut) {}
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
+  }
 };
 
 class ReturnStmt : public Stmt {
@@ -234,6 +256,10 @@ public:
   void addParam(const std::string& name, const std::string& type) {
     Params.push_back({name, type});
   }
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
+  }
 };
 
 class ClassDecl : public Decl {
@@ -244,6 +270,10 @@ public:
   ClassDecl(const std::string& name, const std::string& superClass = "") 
     : Name(name), SuperClass(superClass) {}
   void addMember(DeclPtr member) { Members.push_back(std::move(member)); }
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
+  }
 };
 
 class StructDecl : public Decl {
@@ -252,6 +282,10 @@ public:
   std::vector<DeclPtr> Members;
   StructDecl(const std::string& name) : Name(name) {}
   void addMember(DeclPtr member) { Members.push_back(std::move(member)); }
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
+  }
 };
 
 class PropertyDecl : public Decl {
@@ -263,6 +297,10 @@ public:
   std::string DidSet;
   PropertyDecl(const std::string& name, const std::string& type, ExprPtr init = nullptr)
     : Name(name), Type(type), Initializer(std::move(init)) {}
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
+  }
 };
 
 class MethodDecl : public Decl {
@@ -279,6 +317,10 @@ public:
   void addParam(const std::string& name, const std::string& type) {
     Params.push_back({name, type});
   }
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
+  }
 };
 
 class ConstructorDecl : public Decl {
@@ -288,6 +330,10 @@ public:
   ConstructorDecl(StmtPtr body) : Body(std::move(body)) {}
   void addParam(const std::string& name, const std::string& type) {
     Params.push_back({name, type});
+  }
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
   }
 };
 

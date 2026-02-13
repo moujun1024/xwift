@@ -12,7 +12,7 @@
 
 namespace xwift {
 
-class Sema {
+class Sema : public DeclVisitor {
 public:
   Sema(DiagnosticEngine& diag);
   
@@ -21,9 +21,10 @@ public:
   }
   
   bool visit(Program* prog);
-  bool visit(Decl* decl);
-  bool visit(FuncDecl* func);
-  bool visit(VarDeclStmt* var);
+  
+  bool visit(Decl* decl) override;
+  bool visit(FuncDecl* func) override;
+  bool visit(VarDeclStmt* var) override;
   bool visit(Expr* expr);
   bool visit(Stmt* stmt);
   bool visit(ReturnStmt* ret);
@@ -47,11 +48,12 @@ public:
   bool visit(OptionalChainExpr* expr);
   bool visit(IfLetStmt* stmt);
   bool visit(GuardStmt* stmt);
-  bool visit(ClassDecl* cls);
-  bool visit(StructDecl* st);
-  bool visit(PropertyDecl* prop);
-  bool visit(MethodDecl* method);
-  bool visit(ConstructorDecl* ctor);
+  bool visit(ClassDecl* cls) override;
+  bool visit(StructDecl* st) override;
+  bool visit(PropertyDecl* prop) override;
+  bool visit(MethodDecl* method) override;
+  bool visit(ConstructorDecl* ctor) override;
+  bool visit(ImportDecl* import) override;
   
   std::shared_ptr<Type> getExprType(Expr* expr);
   bool isTypeCompatible(std::shared_ptr<Type> from, std::shared_ptr<Type> to);
