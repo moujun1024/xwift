@@ -18,6 +18,7 @@ public:
   virtual bool isFloat() const { return false; }
   virtual bool isVoid() const { return false; }
   virtual bool isOptional() const { return false; }
+  virtual bool isArray() const { return false; }
 };
 
 class BuiltinType : public Type {
@@ -92,6 +93,24 @@ public:
   
   std::shared_ptr<Type> getWrappedType() const {
     return WrappedType;
+  }
+};
+
+class ArrayType : public Type {
+public:
+  std::shared_ptr<Type> ElementType;
+  
+  ArrayType(std::shared_ptr<Type> elementType)
+    : ElementType(std::move(elementType)) {
+    Name = "[" + ElementType->Name.str() + "]";
+  }
+  
+  bool isArray() const {
+    return true;
+  }
+  
+  std::shared_ptr<Type> getElementType() const {
+    return ElementType;
   }
 };
 

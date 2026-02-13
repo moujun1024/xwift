@@ -60,7 +60,7 @@ public:
   
 private:
   DiagnosticEngine& Diags;
-  std::vector<std::map<std::string, std::shared_ptr<Type>>> ScopeStack;
+  std::vector<std::map<std::string, std::pair<std::shared_ptr<Type>, bool>>> ScopeStack;
   std::map<std::string, FuncDecl*> FunctionTable;
   std::map<std::string, ClassDecl*> ClassTable;
   std::map<std::string, StructDecl*> StructTable;
@@ -74,9 +74,12 @@ private:
   void enterScope();
   void exitScope();
   std::shared_ptr<Type> lookupType(const std::string& name);
-  bool addSymbol(const std::string& name, std::shared_ptr<Type> type);
-  std::shared_ptr<Type> lookupSymbol(const std::string& name);
+  bool addSymbol(const std::string& name, std::shared_ptr<Type> type, bool isMutable = true);
+  std::pair<std::shared_ptr<Type>, bool> lookupSymbol(const std::string& name);
   int getIntegerBitWidth(BuiltinType::Kind kind);
+  
+  std::string findSimilarName(const std::string& name, const std::set<std::string>& candidates);
+  int editDistance(const std::string& a, const std::string& b);
 };
 
 }

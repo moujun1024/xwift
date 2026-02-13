@@ -105,7 +105,8 @@ public:
 class IdentifierExpr : public Expr {
 public:
   std::string Name;
-  IdentifierExpr(const std::string& name) : Name(name) {}
+  SourceLocation Loc;
+  IdentifierExpr(const std::string& name, SourceLocation loc = SourceLocation()) : Name(name), Loc(loc) {}
 };
 
 class AssignExpr : public Expr {
@@ -119,8 +120,9 @@ class BinaryExpr : public Expr {
 public:
   std::string Op;
   ExprPtr LHS, RHS;
-  BinaryExpr(const std::string& op, ExprPtr lhs, ExprPtr rhs)
-    : Op(op), LHS(std::move(lhs)), RHS(std::move(rhs)) {}
+  SourceLocation Loc;
+  BinaryExpr(const std::string& op, ExprPtr lhs, ExprPtr rhs, SourceLocation loc = SourceLocation())
+    : Op(op), LHS(std::move(lhs)), RHS(std::move(rhs)), Loc(loc) {}
 };
 
 class ArrayIndexExpr : public Expr {

@@ -1,5 +1,7 @@
 #include "xwift/Sema/Sema.h"
 #include <iostream>
+#include <limits>
+#include <algorithm>
 
 namespace xwift {
 
@@ -146,30 +148,30 @@ std::shared_ptr<Type> Sema::lookupType(const std::string& name) {
   return baseType;
 }
 
-bool Sema::addSymbol(const std::string& name, std::shared_ptr<Type> type) {
+bool Sema::addSymbol(const std::string& name, std::shared_ptr<Type> type, bool isMutable) {
   if (!ScopeStack.empty()) {
     auto& currentScope = ScopeStack.back();
     if (currentScope.find(name) != currentScope.end()) {
       Diags.report(diag::redefinition(name, SourceLocation(), currentFilename));
       return false;
     }
-    currentScope[name] = type;
+    currentScope[name] = {type, isMutable};
   }
   return true;
 }
 
-std::shared_ptr<Type> Sema::lookupSymbol(const std::string& name) {
+std::pair<std::shared_ptr<Type>, bool> Sema::lookupSymbol(const std::string& name) {
   for (auto it = ScopeStack.rbegin(); it != ScopeStack.rend(); ++it) {
     auto symbolIt = it->find(name);
     if (symbolIt != it->end()) {
       return symbolIt->second;
     }
   }
-  return nullptr;
+  return {nullptr, true};
 }
 
 void Sema::enterScope() {
-  ScopeStack.push_back(std::map<std::string, std::shared_ptr<Type>>());
+  ScopeStack.push_back(std::map<std::string, std::pair<std::shared_ptr<Type>, bool>>());
 }
 
 void Sema::exitScope() {
@@ -374,7 +376,7 @@ bool Sema::visit(VarDeclStmt* var) {
   }
   
   // Add symbol to table after determining type
-  if (!addSymbol(var->Name, type)) {
+  if (!addSymbol(var->Name, type, var->IsMutable)) {
     return false;
   }
   
@@ -621,17 +623,71 @@ bool Sema::visit(CallExpr* call) {
   
   if (isBuiltinFunction(call->Callee)) {
     if (call->Callee == "len") {
+      if (call->Args.size() != 1) {
+        Diags.report(diag::wrongArgCount("len", 1, call->Args.size(), SourceLocation(), currentFilename));
+        return false;
+      }
       call->ExprType = std::make_shared<BuiltinType>(BuiltinType::Int64);
     } else if (call->Callee == "toString") {
+      if (call->Args.size() != 1) {
+        Diags.report(diag::wrongArgCount("toString", 1, call->Args.size(), SourceLocation(), currentFilename));
+        return false;
+      }
       call->ExprType = std::make_shared<BuiltinType>(BuiltinType::String);
     } else if (call->Callee == "toInt") {
+      if (call->Args.size() != 1) {
+        Diags.report(diag::wrongArgCount("toInt", 1, call->Args.size(), SourceLocation(), currentFilename));
+        return false;
+      }
       call->ExprType = std::make_shared<BuiltinType>(BuiltinType::Int64);
     } else if (call->Callee == "split") {
+      if (call->Args.size() != 2) {
+        Diags.report(diag::wrongArgCount("split", 2, call->Args.size(), SourceLocation(), currentFilename));
+        return false;
+      }
       call->ExprType = std::make_shared<BuiltinType>(BuiltinType::Any);
-    } else if (call->Callee == "join" || call->Callee == "append") {
+    } else if (call->Callee == "join") {
+      if (call->Args.size() != 2) {
+        Diags.report(diag::wrongArgCount("join", 2, call->Args.size(), SourceLocation(), currentFilename));
+        return false;
+      }
+      call->ExprType = std::make_shared<BuiltinType>(BuiltinType::Any);
+    } else if (call->Callee == "append") {
+      if (call->Args.size() != 2) {
+        Diags.report(diag::wrongArgCount("append", 2, call->Args.size(), SourceLocation(), currentFilename));
+        return false;
+      }
       call->ExprType = std::make_shared<BuiltinType>(BuiltinType::Any);
     } else if (call->Callee == "trim") {
+      if (call->Args.size() != 1) {
+        Diags.report(diag::wrongArgCount("trim", 1, call->Args.size(), SourceLocation(), currentFilename));
+        return false;
+      }
       call->ExprType = std::make_shared<BuiltinType>(BuiltinType::String);
+    } else if (call->Callee == "get") {
+      if (call->Args.size() != 2) {
+        Diags.report(diag::wrongArgCount("get", 2, call->Args.size(), SourceLocation(), currentFilename));
+        return false;
+      }
+      call->ExprType = std::make_shared<BuiltinType>(BuiltinType::Any);
+    } else if (call->Callee == "insert") {
+      if (call->Args.size() != 3) {
+        Diags.report(diag::wrongArgCount("insert", 3, call->Args.size(), SourceLocation(), currentFilename));
+        return false;
+      }
+      call->ExprType = std::make_shared<BuiltinType>(BuiltinType::Any);
+    } else if (call->Callee == "remove") {
+      if (call->Args.size() != 2) {
+        Diags.report(diag::wrongArgCount("remove", 2, call->Args.size(), SourceLocation(), currentFilename));
+        return false;
+      }
+      call->ExprType = std::make_shared<BuiltinType>(BuiltinType::Any);
+    } else if (call->Callee == "randomInt") {
+      if (call->Args.size() != 2) {
+        Diags.report(diag::wrongArgCount("randomInt", 2, call->Args.size(), SourceLocation(), currentFilename));
+        return false;
+      }
+      call->ExprType = std::make_shared<BuiltinType>(BuiltinType::Int64);
     } else {
       call->ExprType = std::make_shared<BuiltinType>(BuiltinType::Any);
     }
@@ -640,7 +696,20 @@ bool Sema::visit(CallExpr* call) {
   
   auto it = FunctionTable.find(call->Callee);
   if (it == FunctionTable.end()) {
-    Diags.report(diag::undefinedFunction(call->Callee, SourceLocation(), currentFilename));
+    std::set<std::string> allFunctions;
+    for (const auto& func : FunctionTable) {
+      allFunctions.insert(func.first);
+    }
+    for (const auto& builtin : BuiltinFunctions) {
+      allFunctions.insert(builtin);
+    }
+    
+    std::string similar = findSimilarName(call->Callee, allFunctions);
+    auto error = diag::undefinedFunction(call->Callee, SourceLocation(), currentFilename);
+    if (!similar.empty()) {
+      error.addSuggestion("Did you mean '" + similar + "'?");
+    }
+    Diags.report(error);
     return false;
   }
   
@@ -691,11 +760,11 @@ bool Sema::visit(BinaryExpr* binary) {
     binary->ExprType = std::make_shared<BuiltinType>(BuiltinType::Bool);
   } else if (binary->Op == "&&" || binary->Op == "||") {
     if (lhsType && lhsType->Name != "Bool") {
-      Diags.report(diag::operandNotBool(binary->Op, "left", SourceLocation(), currentFilename));
+      Diags.report(diag::operandNotBool(binary->Op, "left", binary->Loc, currentFilename));
       return false;
     }
     if (rhsType && rhsType->Name != "Bool") {
-      Diags.report(diag::operandNotBool(binary->Op, "right", SourceLocation(), currentFilename));
+      Diags.report(diag::operandNotBool(binary->Op, "right", binary->Loc, currentFilename));
       return false;
     }
     binary->ExprType = std::make_shared<BuiltinType>(BuiltinType::Bool);
@@ -727,6 +796,15 @@ bool Sema::visit(AssignExpr* assign) {
     }
   }
   
+  auto target = assign->Target.get();
+  if (auto ident = dynamic_cast<IdentifierExpr*>(target)) {
+    auto symbol = lookupSymbol(ident->Name);
+    if (symbol.first && !symbol.second) {
+      Diags.report(diag::cannotAssignToImmutable(ident->Name, SourceLocation(), currentFilename));
+      return false;
+    }
+  }
+  
   assign->ExprType = varType;
   
   return true;
@@ -737,13 +815,31 @@ bool Sema::visit(IdentifierExpr* ident) {
     return false;
   }
   
-  auto type = lookupSymbol(ident->Name);
-  if (!type) {
-    Diags.report(diag::undefinedVariable(ident->Name, SourceLocation(), currentFilename));
+  auto symbol = lookupSymbol(ident->Name);
+  if (!symbol.first) {
+    std::set<std::string> allSymbols;
+    for (const auto& scope : ScopeStack) {
+      for (const auto& sym : scope) {
+        allSymbols.insert(sym.first);
+      }
+    }
+    for (const auto& func : FunctionTable) {
+      allSymbols.insert(func.first);
+    }
+    for (const auto& builtin : BuiltinFunctions) {
+      allSymbols.insert(builtin);
+    }
+    
+    std::string similar = findSimilarName(ident->Name, allSymbols);
+    auto error = diag::undefinedVariable(ident->Name, ident->Loc, currentFilename);
+    if (!similar.empty()) {
+      error.addSuggestion("Did you mean '" + similar + "'?");
+    }
+    Diags.report(error);
     return false;
   }
   
-  ident->ExprType = type;
+  ident->ExprType = symbol.first;
   
   return true;
 }
@@ -819,7 +915,7 @@ bool Sema::visit(ArrayLiteralExpr* lit) {
     }
   }
   
-  lit->ExprType = elemType;
+  lit->ExprType = std::make_shared<ArrayType>(elemType);
   
   return true;
 }
@@ -848,7 +944,12 @@ bool Sema::visit(ArrayIndexExpr* expr) {
     return false;
   }
   
-  expr->ExprType = arrayType;
+  auto arrayTypeCast = std::dynamic_pointer_cast<ArrayType>(arrayType);
+  if (arrayTypeCast) {
+    expr->ExprType = arrayTypeCast->getElementType();
+  } else {
+    expr->ExprType = arrayType;
+  }
   
   return true;
 }
@@ -1123,6 +1224,47 @@ bool Sema::visit(ConstructorDecl* ctor) {
 
 bool Sema::visit(ImportDecl* import) {
   return true;
+}
+
+int Sema::editDistance(const std::string& a, const std::string& b) {
+  int m = a.length();
+  int n = b.length();
+  
+  std::vector<std::vector<int>> dp(m + 1, std::vector<int>(n + 1));
+  
+  for (int i = 0; i <= m; i++) {
+    dp[i][0] = i;
+  }
+  for (int j = 0; j <= n; j++) {
+    dp[0][j] = j;
+  }
+  
+  for (int i = 1; i <= m; i++) {
+    for (int j = 1; j <= n; j++) {
+      if (a[i - 1] == b[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = 1 + std::min({dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]});
+      }
+    }
+  }
+  
+  return dp[m][n];
+}
+
+std::string Sema::findSimilarName(const std::string& name, const std::set<std::string>& candidates) {
+  std::string bestMatch;
+  int minDistance = std::numeric_limits<int>::max();
+  
+  for (const auto& candidate : candidates) {
+    int dist = editDistance(name, candidate);
+    if (dist < minDistance && dist <= 3) {
+      minDistance = dist;
+      bestMatch = candidate;
+    }
+  }
+  
+  return bestMatch;
 }
 
 }

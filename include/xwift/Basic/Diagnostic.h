@@ -762,6 +762,33 @@ namespace diag {
         
         return error;
     }
+    
+    inline DiagnosticError cannotAssignToImmutable(const std::string& varName,
+                                                  const SourceLocation& loc = SourceLocation(),
+                                                  const std::string& filename = "") {
+        DiagnosticError error("cannot assign to value: '" + varName + "' is a 'let' constant", loc, filename,
+                          ErrorCodes::Semantic::InvalidAssignment);
+        error.Category = ErrorCategory::Semantic;
+        
+        error.addSuggestion("Use 'var' instead of 'let' to make it mutable");
+        error.addSuggestion("Declare a new variable with a different name");
+        
+        return error;
+    }
+    
+    inline DiagnosticError wrongArgCount(const std::string& funcName, int expected, int actual,
+                                        const SourceLocation& loc = SourceLocation(),
+                                        const std::string& filename = "") {
+        DiagnosticError error(funcName + "() expects " + std::to_string(expected) + 
+                           " argument(s), but got " + std::to_string(actual), loc, filename,
+                          ErrorCodes::Semantic::InvalidOperation);
+        error.Category = ErrorCategory::Semantic;
+        
+        error.addSuggestion("Check the number of arguments");
+        error.addSuggestion("Refer to the function signature");
+        
+        return error;
+    }
 }
 
 }

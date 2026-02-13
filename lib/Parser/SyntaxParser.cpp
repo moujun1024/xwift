@@ -395,6 +395,7 @@ std::unique_ptr<Expr> SyntaxParser::parsePrimaryExpression() {
   
   if (CurrentToken.is(TokenKind::Identifier)) {
     std::string name = CurrentToken.Text;
+    auto loc = CurrentToken.Loc;
     advance();
     
     if (CurrentToken.is(TokenKind::punct_l_paren)) {
@@ -414,10 +415,10 @@ std::unique_ptr<Expr> SyntaxParser::parsePrimaryExpression() {
       advance();
       auto index = parseExpression();
       expect(TokenKind::punct_r_bracket);
-      return std::make_unique<ArrayIndexExpr>(std::make_unique<IdentifierExpr>(name), std::move(index));
+      return std::make_unique<ArrayIndexExpr>(std::make_unique<IdentifierExpr>(name, loc), std::move(index));
     }
     
-    return std::make_unique<IdentifierExpr>(name);
+    return std::make_unique<IdentifierExpr>(name, loc);
   }
   
   if (CurrentToken.is(TokenKind::kw_true) || CurrentToken.is(TokenKind::kw_false)) {
@@ -449,6 +450,7 @@ std::unique_ptr<Expr> SyntaxParser::parseBinaryExpression(int minPrecedence) {
     }
     
     std::string op = CurrentToken.Text;
+    auto opLoc = CurrentToken.Loc;
     int precedence = getPrecedence(op);
     
     if (precedence < minPrecedence) {
@@ -457,7 +459,7 @@ std::unique_ptr<Expr> SyntaxParser::parseBinaryExpression(int minPrecedence) {
     
     advance();
     auto rhs = parseBinaryExpression(precedence + 1);
-    lhs = std::make_unique<BinaryExpr>(op, std::move(lhs), std::move(rhs));
+    lhs = std::make_unique<BinaryExpr>(op, std::move(lhs), std::move(rhs), opLoc);
   }
   
   return lhs;
