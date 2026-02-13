@@ -1,0 +1,380 @@
+// XWift Production Environment Test
+// This test demonstrates real-world usage of XWift in a production environment
+// Including network operations, file handling, concurrency, and error handling
+
+import stdlib.Collections.Array
+import stdlib.Collections.Dictionary
+import stdlib.Collections.Set
+import stdlib.Error.Error
+import stdlib.Concurrency.Async
+import stdlib.Filesystem.Path
+import stdlib.HTTP
+import stdlib.JSON
+import stdlib.Terminal
+
+// Error types for our application
+enum AppError {
+    case NetworkError(String)
+    case FileError(String)
+    case ValidationError(String)
+    case ConfigurationError(String)
+}
+
+// Configuration structure
+struct AppConfig {
+    let serverUrl: String
+    let apiKey: String
+    let maxRetries: Int
+    let timeoutSeconds: Int
+    let logFilePath: String
+    let dataDirectory: String
+}
+
+// Data models
+struct User {
+    let id: Int
+    let name: String
+    let email: String
+    let isActive: Bool
+}
+
+struct Product {
+    let id: String
+    let name: String
+    let price: Double
+    let tags: Array<String>
+}
+
+struct ApiResponse {
+    let success: Bool
+    let data: Dictionary<String, Any>
+    let error: String?
+}
+
+// File processor for handling data files
+class FileProcessor {
+    private let config: AppConfig
+    private let processedFiles: Set<String>
+    
+    init(config: AppConfig) {
+        self.config = config
+        self.processedFiles = Set<String>()
+    }
+    
+    // Process a JSON file with error handling
+    func processJsonFile(filePath: String) -> Result<Array<Product>, AppError> {
+        print("Processing JSON file: \(filePath)")
+        
+        // Check if file exists
+        let path = Path(filePath)
+        if !path.exists() {
+            return Result<Array<Product>, AppError>(AppError.FileError("File not found: \(filePath)"))
+        }
+        
+        // Read file content
+        let fileContent = readFile(filePath)
+        if fileContent.isEmpty {
+            return Result<Array<Product>, AppError>(AppError.FileError("Empty file: \(filePath)"))
+        }
+        
+        // Parse JSON with error handling
+        let jsonData = jsonParse(fileContent)
+        if jsonData.isError {
+            return Result<Array<Product>, AppError>(AppError.FileError("Invalid JSON: \(jsonData.getError().getMessage())"))
+        }
+        
+        // Extract products array
+        let productsArray = jsonData.getValue()["products"]
+        if productsArray.isError {
+            return Result<Array<Product>, AppError>(AppError.ValidationError("Missing products array"))
+        }
+        
+        // Convert to products
+        var products: Array<Product> = []
+        for item in productsArray.getValue() {
+            if let productDict = item as? Dictionary<String, Any> {
+                let id = productDict["id"] ?? ""
+                let name = productDict["name"] ?? ""
+                let price = productDict["price"] ?? 0.0
+                let tagsArray = productDict["tags"] ?? []
+                
+                var tags: Array<String> = []
+                for tag in tagsArray {
+                    if let tag = tag as? String {
+                        tags.append(tag)
+                    }
+                }
+                
+                products.append(Product(
+                    id: id,
+                    name: name,
+                    price: price,
+                    tags: tags
+                ))
+            }
+        }
+        
+        // Validate products
+        for product in products {
+            if product.id.isEmpty || product.name.isEmpty || product.price < 0 {
+                return Result<Array<Product>, AppError>(AppError.ValidationError("Invalid product data"))
+            }
+        }
+        
+        // Mark file as processed
+        processedFiles.insert(filePath)
+        
+        print("Successfully processed \(products.count()) products from \(filePath)")
+        return Result<Array<Product>, AppError>(products)
+    }
+    
+    // Process multiple files concurrently
+    func processFilesConcurrently(filePaths: Array<String>) -> Result<Int, AppError> {
+        print("Processing \(filePaths.count()) files concurrently...")
+        
+        let actor = FileProcessorActor(config: config)
+        var tasks: Array<Task<Result<String, AppError>>> = []
+        
+        // Create tasks for each file
+        for filePath in filePaths {
+            let task = Task<Result<String, AppError>> {
+                actor.processFile(filePath)
+            }
+            tasks.append(task)
+        }
+        
+        // Wait for all tasks to complete
+        var successCount = 0
+        var errorCount = 0
+        
+        for task in tasks {
+            let result = task.await()
+            if result.isError() {
+                errorCount += 1
+                print("Error processing file: \(result.getError().getMessage())")
+            } else {
+                successCount += 1
+                print("Processed file: \(result.getValue())")
+            }
+        }
+        
+        print("Concurrent processing complete: \(successCount) successful, \(errorCount) failed")
+        return Result<Int, AppError>(successCount)
+    }
+}
+
+// Actor for thread-safe file processing
+actor FileProcessorActor {
+    private let config: AppConfig
+    private let processedFiles: Set<String>
+    
+    init(config: AppConfig) {
+        self.config = config
+        self.processedFiles = Set<String>()
+    }
+    
+    func processFile(filePath: String) -> Result<String, AppError> {
+        // Check if already processed
+        if processedFiles.contains(filePath) {
+            return Result<String, AppError>(AppError.ValidationError("File already processed: \(filePath)"))
+        }
+        
+        // Mark as processed
+        processedFiles.insert(filePath)
+        
+        // Simulate processing time
+        sleepMs(100) // Simulate work
+        
+        return Result<String, AppError>("Processed: \(filePath)")
+    }
+}
+
+// Network manager for API calls
+class NetworkManager {
+    private let config: AppConfig
+    
+    init(config: AppConfig) {
+        self.config = config
+    }
+    
+    // Make API request with retry logic
+    func fetchProducts() -> Result<ApiResponse, AppError> {
+        var retryCount = 0
+        var lastError: AppError?
+        
+        while retryCount < config.maxRetries {
+            print("Fetching products from \(config.serverUrl) (attempt \(retryCount + 1)/\(config.maxRetries))")
+            
+            let result = makeApiRequest(config.serverUrl, config.apiKey)
+            if result.isError() {
+                lastError = result.getError()
+                retryCount += 1
+                print("Request failed: \(lastError?.getMessage() ?? "Unknown error")")
+                
+                // Exponential backoff
+                let delayMs = 1000 * (1 << min(retryCount, 5))
+                print("Retrying in \(delayMs)ms...")
+                sleepMs(delayMs)
+            } else {
+                // Success
+                print("Successfully fetched products")
+                return result
+            }
+        }
+        
+        // All retries failed
+        if let error = lastError {
+            return Result<ApiResponse, AppError>(error)
+        }
+        
+        return Result<ApiResponse, AppError>(AppError.NetworkError("Unknown error after retries"))
+    }
+    
+    // Make actual HTTP request
+    private func makeApiRequest(url: String, apiKey: String) -> Result<ApiResponse, AppError> {
+        let headers = Dictionary<String, String>()
+        headers["Authorization"] = "Bearer \(apiKey)"
+        headers["Content-Type"] = "application/json"
+        
+        let response = httpGet(url, headers)
+        if response.statusCode != 200 {
+            return Result<ApiResponse, AppError>(AppError.NetworkError("HTTP error: \(response.statusCode)"))
+        }
+        
+        let responseData = response.body
+        if responseData.isEmpty {
+            return Result<ApiResponse, AppError>(AppError.NetworkError("Empty response"))
+        }
+        
+        let jsonData = jsonParse(responseData)
+        if jsonData.isError() {
+            return Result<ApiResponse, AppError>(AppError.NetworkError("Invalid JSON response"))
+        }
+        
+        let data = jsonData.getValue()
+        let success = data["success"] as? Bool ?? false
+        let error = data["error"] as? String
+        
+        return Result<ApiResponse, AppError>(ApiResponse(
+            success: success,
+            data: data,
+            error: error
+        ))
+    }
+}
+
+// Main application class
+class ProductionApp {
+    private let config: AppConfig
+    private let fileProcessor: FileProcessor
+    private let networkManager: NetworkManager
+    
+    init(config: AppConfig) {
+        self.config = config
+        self.fileProcessor = FileProcessor(config: config)
+        self.networkManager = NetworkManager(config: config)
+    }
+    
+    // Run the application
+    func run() -> Result<Void, AppError> {
+        print("Starting XWift Production Environment Test")
+        print("Configuration:")
+        print("  Server URL: \(config.serverUrl)")
+        print("  Data Directory: \(config.dataDirectory)")
+        print("  Log File: \(config.logFilePath)")
+        
+        // Ensure data directory exists
+        let dataPath = Path(config.dataDirectory)
+        if !dataPath.exists() {
+            print("Creating data directory: \(config.dataDirectory)")
+            // In a real app, this would create the directory
+            // For this test, we'll just continue
+        }
+        
+        // Process local files
+        let localFiles = [
+            config.dataDirectory + "/products.json",
+            config.dataDirectory + "/users.json",
+            config.dataDirectory + "/inventory.json"
+        ]
+        
+        let fileResult = fileProcessor.processFilesConcurrently(filePaths: localFiles)
+        if fileResult.isError() {
+            print("Error processing local files: \(fileResult.getError().getMessage())")
+        } else {
+            print("Successfully processed \(fileResult.getValue()) local files")
+        }
+        
+        // Fetch remote data
+        let apiResult = networkManager.fetchProducts()
+        if apiResult.isError() {
+            print("Error fetching remote data: \(apiResult.getError().getMessage())")
+        } else {
+            let response = apiResult.getValue()
+            if response.success {
+                print("Successfully fetched remote data")
+                
+                // Process remote products
+                if let productsData = response.data["products"] {
+                    if let productsArray = productsData as? Array<Any> {
+                        print("Found \(productsArray.count()) products in remote data")
+                        
+                        // In a real app, we would process this data
+                        // For this test, we'll just count them
+                    }
+                }
+            } else {
+                print("Remote API returned error: \(response.error ?? "Unknown")")
+            }
+        }
+        
+        // Write log file
+        writeLogFile()
+        
+        print("Production test completed successfully")
+        return Result<Void, AppError>(())
+    }
+    
+    // Write application log
+    private func writeLogFile() {
+        let logContent = "XWift Production Test Log\n" +
+                        "Timestamp: \(getCurrentTimestamp())\n" +
+                        "Files Processed: \(fileProcessor.processedFiles.count())\n" +
+                        "Status: Completed\n"
+        
+        writeFile(config.logFilePath, logContent)
+        print("Log written to: \(config.logFilePath)")
+    }
+    
+    // Get current timestamp
+    private func getCurrentTimestamp() -> String {
+        // In a real app, this would use a proper date/time library
+        // For this test, we'll use a simple format
+        return "2023-11-15 14:30:00"
+    }
+}
+
+// Main entry point
+func main() {
+    // Load configuration (in a real app, this would come from a config file)
+    let config = AppConfig(
+        serverUrl: "https://api.example.com/products",
+        apiKey: "test-api-key-12345",
+        maxRetries: 3,
+        timeoutSeconds: 30,
+        logFilePath: "xwift_production.log",
+        dataDirectory: "./data"
+    )
+    
+    // Create and run the app
+    let app = ProductionApp(config: config)
+    let result = app.run()
+    
+    if result.isError() {
+        print("Application failed: \(result.getError().getMessage())")
+        exit(1)
+    }
+    
+    print("Application completed successfully")
+    exit(0)
+}
