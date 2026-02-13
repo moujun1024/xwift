@@ -1,0 +1,122 @@
+let width = 20
+let height = 10
+
+clearScreen()
+hideCursor()
+
+let snake = [[10, 5]]
+let direction = 1
+let foodX = randomInt(1, width - 2)
+let foodY = randomInt(1, height - 2)
+let gameOver = false
+let score = 0
+
+while !gameOver {
+    clearScreen()
+    
+    setColor(2)
+    println("XWift Snake - Score: " + toString(score))
+    resetColor()
+    println()
+    
+    setColor(3)
+    let y = 0
+    while y < height {
+        let x = 0
+        while x < width {
+            if y == 0 || y == height - 1 || x == 0 || x == width - 1 {
+                print("#")
+            } else if y == foodY && x == foodX {
+                setColor(1)
+                print("@")
+                setColor(3)
+            } else {
+                let isSnake = false
+                let i = 0
+                while i < len(snake) {
+                    let segment = get(snake, i)
+                    if segment[0] == x && segment[1] == y {
+                        isSnake = true
+                    }
+                    i = i + 1
+                }
+                if isSnake {
+                    setColor(2)
+                    print("O")
+                    setColor(3)
+                } else {
+                    print(" ")
+                }
+            }
+            x = x + 1
+        }
+        println()
+        y = y + 1
+    }
+    resetColor()
+    
+    if hasInput() {
+        let key = getKey()
+        if key == "UP" && direction != 2 {
+            direction = 0
+        } else if key == "DOWN" && direction != 0 {
+            direction = 2
+        } else if key == "LEFT" && direction != 1 {
+            direction = 3
+        } else if key == "RIGHT" && direction != 3 {
+            direction = 1
+        } else if key == "q" || key == "Q" {
+            gameOver = true
+        }
+    }
+    
+    let head = get(snake, 0)
+    let headX = head[0]
+    let headY = head[1]
+    
+    let newHeadX = headX
+    let newHeadY = headY
+    
+    if direction == 0 {
+        newHeadY = headY - 1
+    } else if direction == 1 {
+        newHeadX = headX + 1
+    } else if direction == 2 {
+        newHeadY = headY + 1
+    } else if direction == 3 {
+        newHeadX = headX - 1
+    }
+    
+    if newHeadX <= 0 || newHeadX >= width - 1 || newHeadY <= 0 || newHeadY >= height - 1 {
+        gameOver = true
+    }
+    
+    let i = 0
+    while i < len(snake) {
+        let segment = get(snake, i)
+        if segment[0] == newHeadX && segment[1] == newHeadY {
+            gameOver = true
+        }
+        i = i + 1
+    }
+    
+    let newHead = [newHeadX, newHeadY]
+    snake = insert(snake, 0, newHead)
+    
+    if newHeadX == foodX && newHeadY == foodY {
+        score = score + 1
+        foodX = randomInt(1, width - 2)
+        foodY = randomInt(1, height - 2)
+    } else {
+        snake = remove(snake, len(snake) - 1)
+    }
+    
+    sleepMs(100)
+}
+
+showCursor()
+clearScreen()
+setColor(1)
+println("Game Over!")
+resetColor()
+println("Final Score: " + toString(score))

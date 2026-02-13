@@ -1,0 +1,47 @@
+let width = getTerminalWidth()
+let height = getTerminalHeight()
+
+println("Terminal size: " + toString(width) + "x" + toString(height))
+
+clearScreen()
+
+setColor(2)
+println("XWift Terminal Game Demo")
+resetColor()
+
+println()
+println("Press arrow keys to move (Q to quit)")
+println()
+
+let x = 10
+let y = 10
+let running = true
+
+while running {
+    moveCursor(y, x)
+    print("*")
+    
+    if hasInput() {
+        let key = getKey()
+        
+        moveCursor(y, x)
+        print(" ")
+        
+        if key == "UP" {
+            y = y - 1
+        } else if key == "DOWN" {
+            y = y + 1
+        } else if key == "LEFT" {
+            x = x - 1
+        } else if key == "RIGHT" {
+            x = x + 1
+        } else if key == "q" || key == "Q" {
+            running = false
+        }
+    }
+    
+    sleepMs(100)
+}
+
+clearScreen()
+println("Game over!")

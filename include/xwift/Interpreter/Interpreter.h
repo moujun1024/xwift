@@ -7,6 +7,7 @@
 #include "xwift/Parser/SyntaxParser.h"
 #include "xwift/stdlib/HTTP/HTTP.h"
 #include "xwift/stdlib/JSON/JSON.h"
+#include "xwift/stdlib/Terminal/Terminal.h"
 #include <map>
 #include <iostream>
 #include <sstream>
@@ -549,6 +550,439 @@ public:
       return Value("");
     };
     
+    Functions["set"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 3) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        std::vector<Value> newArr = *arr;
+        if (auto idx = args[1].get<int64_t>()) {
+          if (*idx >= 0 && *idx < (int64_t)newArr.size()) {
+            newArr[*idx] = args[2];
+          }
+        }
+        return Value(newArr);
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["insert"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 3) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        std::vector<Value> newArr = *arr;
+        if (auto idx = args[1].get<int64_t>()) {
+          if (*idx >= 0 && *idx <= (int64_t)newArr.size()) {
+            newArr.insert(newArr.begin() + *idx, args[2]);
+          }
+        }
+        return Value(newArr);
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["contains"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 2) return Value(false);
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        for (const auto& item : *arr) {
+          if (item == args[1]) {
+            return Value(true);
+          }
+        }
+      }
+      return Value(false);
+    };
+    
+    Functions["removeFirst"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        std::vector<Value> newArr = *arr;
+        if (!newArr.empty()) {
+          newArr.erase(newArr.begin());
+        }
+        return Value(newArr);
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["removeLast"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        std::vector<Value> newArr = *arr;
+        if (!newArr.empty()) {
+          newArr.pop_back();
+        }
+        return Value(newArr);
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["first"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        if (!arr->empty()) {
+          return (*arr)[0];
+        }
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["last"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        if (!arr->empty()) {
+          return (*arr)[arr->size() - 1];
+        }
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["reverse"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        std::vector<Value> newArr = *arr;
+        std::reverse(newArr.begin(), newArr.end());
+        return Value(newArr);
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["slice"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 2) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        if (auto start = args[1].get<int64_t>()) {
+          int64_t end = arr->size();
+          if (args.size() >= 3) {
+            if (auto endVal = args[2].get<int64_t>()) {
+              end = *endVal;
+            }
+          }
+          
+          if (*start >= 0 && end >= *start && end <= (int64_t)arr->size()) {
+            std::vector<Value> newArr;
+            for (int64_t i = *start; i < end; i++) {
+              newArr.push_back((*arr)[i]);
+            }
+            return Value(newArr);
+          }
+        }
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["indexOf"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 2) return Value(int64_t(-1));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        int64_t index = 0;
+        for (const auto& item : *arr) {
+          if (item == args[1]) {
+            return Value(int64_t(index));
+          }
+          index++;
+        }
+      }
+      return Value(int64_t(-1));
+    };
+    
+    Functions["map"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 2) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        if (auto funcName = args[1].get<std::string>()) {
+          std::vector<Value> newArr;
+          for (const auto& item : *arr) {
+            auto it = UserFunctions.find(*funcName);
+            if (it != UserFunctions.end()) {
+              FuncDecl* func = it->second;
+              if (func->Body) {
+                auto* block = dynamic_cast<BlockStmt*>(func->Body.get());
+                if (block) {
+                  enterScope();
+                  setVariable(func->Params[0].first, item);
+                  Value result(int64_t(0));
+                  runBlock(block, &result);
+                  exitScope();
+                  newArr.push_back(result);
+                }
+              }
+            }
+          }
+          return Value(newArr);
+        }
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["filter"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 2) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        if (auto funcName = args[1].get<std::string>()) {
+          std::vector<Value> newArr;
+          for (const auto& item : *arr) {
+            auto it = UserFunctions.find(*funcName);
+            if (it != UserFunctions.end()) {
+              FuncDecl* func = it->second;
+              if (func->Body) {
+                auto* block = dynamic_cast<BlockStmt*>(func->Body.get());
+                if (block) {
+                  enterScope();
+                  setVariable(func->Params[0].first, item);
+                  Value result(int64_t(0));
+                  runBlock(block, &result);
+                  exitScope();
+                  if (auto keep = result.get<bool>()) {
+                    if (*keep) {
+                      newArr.push_back(item);
+                    }
+                  }
+                }
+              }
+            }
+          }
+          return Value(newArr);
+        }
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["reduce"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 3) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        if (auto funcName = args[1].get<std::string>()) {
+          Value accumulator = args[2];
+          for (const auto& item : *arr) {
+            auto it = UserFunctions.find(*funcName);
+            if (it != UserFunctions.end()) {
+              FuncDecl* func = it->second;
+              if (func->Body) {
+                auto* block = dynamic_cast<BlockStmt*>(func->Body.get());
+                if (block) {
+                  enterScope();
+                  setVariable(func->Params[0].first, accumulator);
+                  setVariable(func->Params[1].first, item);
+                  Value result(int64_t(0));
+                  runBlock(block, &result);
+                  exitScope();
+                  accumulator = result;
+                }
+              }
+            }
+          }
+          return accumulator;
+        }
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["sum"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        int64_t total = 0;
+        for (const auto& item : *arr) {
+          if (auto val = item.get<int64_t>()) {
+            total += *val;
+          }
+        }
+        return Value(int64_t(total));
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["average"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(0.0);
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        if (arr->empty()) return Value(0.0);
+        int64_t total = 0;
+        for (const auto& item : *arr) {
+          if (auto val = item.get<int64_t>()) {
+            total += *val;
+          }
+        }
+        return Value(static_cast<double>(total) / arr->size());
+      }
+      return Value(0.0);
+    };
+    
+    Functions["max"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        if (arr->empty()) return Value(int64_t(0));
+        int64_t maxVal = INT64_MIN;
+        for (const auto& item : *arr) {
+          if (auto val = item.get<int64_t>()) {
+            if (*val > maxVal) {
+              maxVal = *val;
+            }
+          }
+        }
+        return Value(int64_t(maxVal));
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["min"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        if (arr->empty()) return Value(int64_t(0));
+        int64_t minVal = INT64_MAX;
+        for (const auto& item : *arr) {
+          if (auto val = item.get<int64_t>()) {
+            if (*val < minVal) {
+              minVal = *val;
+            }
+          }
+        }
+        return Value(int64_t(minVal));
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["shuffle"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        std::vector<Value> newArr = *arr;
+        for (size_t i = newArr.size() - 1; i > 0; i--) {
+          size_t j = rand() % (i + 1);
+          std::swap(newArr[i], newArr[j]);
+        }
+        return Value(newArr);
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["sort"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        std::vector<Value> newArr = *arr;
+        std::sort(newArr.begin(), newArr.end());
+        return Value(newArr);
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["unique"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        std::vector<Value> newArr;
+        for (const auto& item : *arr) {
+          bool found = false;
+          for (const auto& existing : newArr) {
+            if (existing == item) {
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            newArr.push_back(item);
+          }
+        }
+        return Value(newArr);
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["flatten"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        std::vector<Value> newArr;
+        for (const auto& item : *arr) {
+          if (auto nested = item.get<std::vector<Value>>()) {
+            for (const auto& nestedItem : *nested) {
+              newArr.push_back(nestedItem);
+            }
+          } else {
+            newArr.push_back(item);
+          }
+        }
+        return Value(newArr);
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["zip"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 2) return Value(int64_t(0));
+      if (auto arr1 = args[0].get<std::vector<Value>>()) {
+        if (auto arr2 = args[1].get<std::vector<Value>>()) {
+          std::vector<Value> newArr;
+          size_t minSize = std::min(arr1->size(), arr2->size());
+          for (size_t i = 0; i < minSize; i++) {
+            std::vector<Value> pair;
+            pair.push_back((*arr1)[i]);
+            pair.push_back((*arr2)[i]);
+            newArr.push_back(Value(pair));
+          }
+          return Value(newArr);
+        }
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["chunk"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 2) return Value(int64_t(0));
+      if (auto arr = args[0].get<std::vector<Value>>()) {
+        if (auto size = args[1].get<int64_t>()) {
+          if (*size > 0) {
+            std::vector<Value> newArr;
+            for (size_t i = 0; i < arr->size(); i += *size) {
+              std::vector<Value> chunk;
+              for (size_t j = i; j < i + *size && j < arr->size(); j++) {
+                chunk.push_back((*arr)[j]);
+              }
+              newArr.push_back(Value(chunk));
+            }
+            return Value(newArr);
+          }
+        }
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["range"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      int64_t start = 0;
+      int64_t end = 0;
+      int64_t step = 1;
+      
+      if (args.size() >= 1) {
+        if (auto val = args[0].get<int64_t>()) {
+          end = *val;
+        }
+      }
+      
+      if (args.size() >= 2) {
+        if (auto val = args[0].get<int64_t>()) {
+          start = *val;
+        }
+        if (auto val = args[1].get<int64_t>()) {
+          end = *val;
+        }
+      }
+      
+      if (args.size() >= 3) {
+        if (auto val = args[2].get<int64_t>()) {
+          step = *val;
+        }
+      }
+      
+      std::vector<Value> newArr;
+      for (int64_t i = start; i < end; i += step) {
+        newArr.push_back(Value(i));
+      }
+      return Value(newArr);
+    };
+    
+    Functions["repeat"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 2) return Value(int64_t(0));
+      if (auto val = args[0].get<std::vector<Value>>()) {
+        if (auto count = args[1].get<int64_t>()) {
+          std::vector<Value> newArr;
+          for (int64_t i = 0; i < *count; i++) {
+            for (const auto& item : *val) {
+              newArr.push_back(item);
+            }
+          }
+          return Value(newArr);
+        }
+      }
+      return Value(int64_t(0));
+    };
+    
     Functions["join"] = [](std::vector<Value> args) -> Value {
       if (args.size() < 2) return Value("");
       if (auto arr = args[0].get<std::vector<Value>>()) {
@@ -566,6 +1000,150 @@ public:
         }
       }
       return Value("");
+    };
+    
+    Functions["clearScreen"] = [this](std::vector<Value> args) -> Value {
+      terminal::Terminal term;
+      term.init();
+      term.clearScreen();
+      term.cleanup();
+      return Value(int64_t(0));
+    };
+    
+    Functions["moveCursor"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 2) return Value(int64_t(0));
+      if (auto row = args[0].get<int64_t>()) {
+        if (auto col = args[1].get<int64_t>()) {
+          terminal::Terminal term;
+          term.init();
+          term.moveCursor(static_cast<int>(*row), static_cast<int>(*col));
+          term.cleanup();
+        }
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["hideCursor"] = [this](std::vector<Value> args) -> Value {
+      terminal::Terminal term;
+      term.init();
+      term.hideCursor();
+      term.cleanup();
+      return Value(int64_t(0));
+    };
+    
+    Functions["showCursor"] = [this](std::vector<Value> args) -> Value {
+      terminal::Terminal term;
+      term.init();
+      term.showCursor();
+      term.cleanup();
+      return Value(int64_t(0));
+    };
+    
+    Functions["setColor"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 1) return Value(int64_t(0));
+      if (auto fg = args[0].get<int64_t>()) {
+        int bg = -1;
+        if (args.size() >= 2) {
+          if (auto bgVal = args[1].get<int64_t>()) {
+            bg = static_cast<int>(*bgVal);
+          }
+        }
+        terminal::Terminal term;
+        term.init();
+        term.setColor(static_cast<int>(*fg), bg);
+        term.cleanup();
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["resetColor"] = [this](std::vector<Value> args) -> Value {
+      terminal::Terminal term;
+      term.init();
+      term.resetColor();
+      term.cleanup();
+      return Value(int64_t(0));
+    };
+    
+    Functions["getTerminalWidth"] = [this](std::vector<Value> args) -> Value {
+      terminal::Terminal term;
+      term.init();
+      int width = term.getTerminalWidth();
+      term.cleanup();
+      return Value(int64_t(width));
+    };
+    
+    Functions["getTerminalHeight"] = [this](std::vector<Value> args) -> Value {
+      terminal::Terminal term;
+      term.init();
+      int height = term.getTerminalHeight();
+      term.cleanup();
+      return Value(int64_t(height));
+    };
+    
+    Functions["hasInput"] = [this](std::vector<Value> args) -> Value {
+      terminal::Terminal term;
+      term.init();
+      bool has = term.hasInput();
+      term.cleanup();
+      return Value(has);
+    };
+    
+    Functions["getKey"] = [this](std::vector<Value> args) -> Value {
+      terminal::Terminal term;
+      term.init();
+      terminal::KeyEvent event = term.getKey();
+      term.cleanup();
+      
+      std::string keyStr;
+      switch (event.code) {
+        case terminal::KeyCode::Up: keyStr = "UP"; break;
+        case terminal::KeyCode::Down: keyStr = "DOWN"; break;
+        case terminal::KeyCode::Left: keyStr = "LEFT"; break;
+        case terminal::KeyCode::Right: keyStr = "RIGHT"; break;
+        case terminal::KeyCode::Enter: keyStr = "ENTER"; break;
+        case terminal::KeyCode::Tab: keyStr = "TAB"; break;
+        case terminal::KeyCode::Backspace: keyStr = "BACKSPACE"; break;
+        case terminal::KeyCode::Delete: keyStr = "DELETE"; break;
+        case terminal::KeyCode::Escape: keyStr = "ESCAPE"; break;
+        case terminal::KeyCode::Space: keyStr = "SPACE"; break;
+        case terminal::KeyCode::Character:
+          keyStr = std::string(1, event.character);
+          break;
+        default:
+          keyStr = "UNKNOWN";
+          break;
+      }
+      
+      return Value(keyStr);
+    };
+    
+    Functions["sleepMs"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 1) return Value(int64_t(0));
+      if (auto ms = args[0].get<int64_t>()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(*ms));
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["randomInt"] = [this](std::vector<Value> args) -> Value {
+      int min = 0;
+      int max = 100;
+      
+      if (args.size() >= 1) {
+        if (auto minVal = args[0].get<int64_t>()) {
+          min = static_cast<int>(*minVal);
+        }
+      }
+      
+      if (args.size() >= 2) {
+        if (auto maxVal = args[1].get<int64_t>()) {
+          max = static_cast<int>(*maxVal);
+        }
+      }
+      
+      int range = max - min + 1;
+      int result = min + (rand() % range);
+      return Value(int64_t(result));
     };
   }
   

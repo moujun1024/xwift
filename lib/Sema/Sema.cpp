@@ -36,6 +36,42 @@ void Sema::initBuiltinFunctions() {
   BuiltinFunctions.insert("jsonGetArray");
   BuiltinFunctions.insert("jsonGetObject");
   BuiltinFunctions.insert("jsonToString");
+  BuiltinFunctions.insert("clearScreen");
+  BuiltinFunctions.insert("moveCursor");
+  BuiltinFunctions.insert("hideCursor");
+  BuiltinFunctions.insert("showCursor");
+  BuiltinFunctions.insert("setColor");
+  BuiltinFunctions.insert("resetColor");
+  BuiltinFunctions.insert("getTerminalWidth");
+  BuiltinFunctions.insert("getTerminalHeight");
+  BuiltinFunctions.insert("hasInput");
+  BuiltinFunctions.insert("getKey");
+  BuiltinFunctions.insert("sleepMs");
+  BuiltinFunctions.insert("randomInt");
+  BuiltinFunctions.insert("insert");
+  BuiltinFunctions.insert("contains");
+  BuiltinFunctions.insert("removeFirst");
+  BuiltinFunctions.insert("removeLast");
+  BuiltinFunctions.insert("first");
+  BuiltinFunctions.insert("last");
+  BuiltinFunctions.insert("reverse");
+  BuiltinFunctions.insert("slice");
+  BuiltinFunctions.insert("indexOf");
+  BuiltinFunctions.insert("map");
+  BuiltinFunctions.insert("filter");
+  BuiltinFunctions.insert("reduce");
+  BuiltinFunctions.insert("sum");
+  BuiltinFunctions.insert("average");
+  BuiltinFunctions.insert("max");
+  BuiltinFunctions.insert("min");
+  BuiltinFunctions.insert("shuffle");
+  BuiltinFunctions.insert("sort");
+  BuiltinFunctions.insert("unique");
+  BuiltinFunctions.insert("flatten");
+  BuiltinFunctions.insert("zip");
+  BuiltinFunctions.insert("chunk");
+  BuiltinFunctions.insert("range");
+  BuiltinFunctions.insert("repeat");
 }
 
 bool Sema::isBuiltinFunction(const std::string& name) {

@@ -15,9 +15,15 @@ set(JSON_CLIENT_SOURCES
   JSON/JSONClient.cpp
 )
 
+set(TERMINAL_SOURCES
+  Terminal/Terminal.cpp
+)
+
 add_library(XWiftJSON STATIC ${JSON_SOURCES})
 add_library(XWiftHTTPClient STATIC ${HTTP_CLIENT_SOURCES})
 add_library(XWiftJSONClient STATIC ${JSON_CLIENT_SOURCES})
+
+add_library(XWiftTerminal STATIC ${TERMINAL_SOURCES})
 
 if(WIN32)
   set(HTTP_SOURCES
@@ -58,5 +64,9 @@ target_include_directories(XWiftHTTPClient PUBLIC
 )
 
 target_include_directories(XWiftJSONClient PUBLIC
+  ${CMAKE_SOURCE_DIR}/include
+)
+
+target_include_directories(XWiftTerminal PUBLIC
   ${CMAKE_SOURCE_DIR}/include
 )
