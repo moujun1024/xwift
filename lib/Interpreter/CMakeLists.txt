@@ -8,4 +8,4 @@ target_include_directories(XWiftInterpreter PUBLIC
   ${CMAKE_SOURCE_DIR}/include
 )
 
-target_link_libraries(XWiftInterpreter PUBLIC XWiftBasic XWiftAST XWiftTerminal)
+target_link_libraries(XWiftInterpreter PUBLIC XWiftBasic XWiftAST XWiftTerminal XWiftFilesystem)

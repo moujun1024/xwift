@@ -9,6 +9,8 @@
 #include "xwift/stdlib/JSON/JSON.h"
 #include "xwift/stdlib/Terminal/Terminal.h"
 #include "xwift/AST/Module.h"
+#include "xwift/Filesystem/Filesystem.h"
+#include "xwift/Logging/Logger.h"
 #include <map>
 #include <iostream>
 #include <sstream>
@@ -684,6 +686,186 @@ public:
         }
       }
       return Value("");
+    };
+    
+    Functions["fileExists"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(false);
+      if (auto path = args[0].get<std::string>()) {
+        return Value(fs::FileSystem::exists(*path));
+      }
+      return Value(false);
+    };
+    
+    Functions["fileRead"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value("");
+      if (auto path = args[0].get<std::string>()) {
+        std::string content;
+        auto result = fs::FileSystem::readFile(*path, content);
+        if (result.success) {
+          return Value(content);
+        }
+      }
+      return Value("");
+    };
+    
+    Functions["fileWrite"] = [](std::vector<Value> args) -> Value {
+      if (args.size() < 2) return Value(int64_t(0));
+      if (auto path = args[0].get<std::string>()) {
+        if (auto content = args[1].get<std::string>()) {
+          auto result = fs::FileSystem::writeFile(*path, *content);
+          return Value(result.success ? int64_t(1) : int64_t(0));
+        }
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["fileAppend"] = [](std::vector<Value> args) -> Value {
+      if (args.size() < 2) return Value(int64_t(0));
+      if (auto path = args[0].get<std::string>()) {
+        if (auto content = args[1].get<std::string>()) {
+          auto result = fs::FileSystem::appendFile(*path, *content);
+          return Value(result.success ? int64_t(1) : int64_t(0));
+        }
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["fileDelete"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto path = args[0].get<std::string>()) {
+        auto result = fs::FileSystem::deleteFile(*path);
+        return Value(result.success ? int64_t(1) : int64_t(0));
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["fileSize"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto path = args[0].get<std::string>()) {
+        return Value(int64_t(fs::FileSystem::getFileSize(*path)));
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["fileList"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(std::vector<Value>());
+      if (auto path = args[0].get<std::string>()) {
+        auto files = fs::FileSystem::listFiles(*path);
+        std::vector<Value> result;
+        for (const auto& file : files) {
+          result.push_back(Value(file));
+        }
+        return Value(result);
+      }
+      return Value(std::vector<Value>());
+    };
+    
+    Functions["fileNormalize"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value("");
+      if (auto path = args[0].get<std::string>()) {
+        return Value(fs::FileSystem::normalizePath(*path));
+      }
+      return Value("");
+    };
+    
+    Functions["fileGetDir"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value("");
+      if (auto path = args[0].get<std::string>()) {
+        return Value(fs::FileSystem::getDirectoryName(*path));
+      }
+      return Value("");
+    };
+    
+    Functions["fileGetName"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value("");
+      if (auto path = args[0].get<std::string>()) {
+        return Value(fs::FileSystem::getFileName(*path));
+      }
+      return Value("");
+    };
+    
+    Functions["fileGetExt"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value("");
+      if (auto path = args[0].get<std::string>()) {
+        return Value(fs::FileSystem::getFileExtension(*path));
+      }
+      return Value("");
+    };
+    
+    Functions["logTrace"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto msg = args[0].get<std::string>()) {
+        LOG_TRACE(*msg);
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["logDebug"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto msg = args[0].get<std::string>()) {
+        LOG_DEBUG(*msg);
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["logInfo"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto msg = args[0].get<std::string>()) {
+        LOG_INFO(*msg);
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["logWarning"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto msg = args[0].get<std::string>()) {
+        LOG_WARNING(*msg);
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["logError"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto msg = args[0].get<std::string>()) {
+        LOG_ERROR(*msg);
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["logFatal"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto msg = args[0].get<std::string>()) {
+        LOG_FATAL(*msg);
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["logSetLevel"] = [](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(int64_t(0));
+      if (auto level = args[0].get<std::string>()) {
+        auto& logger = logging::Logger::getInstance();
+        if (*level == "trace") {
+          logger.setLevel(logging::LogLevel::Trace);
+        } else if (*level == "debug") {
+          logger.setLevel(logging::LogLevel::Debug);
+        } else if (*level == "info") {
+          logger.setLevel(logging::LogLevel::Info);
+        } else if (*level == "warning") {
+          logger.setLevel(logging::LogLevel::Warning);
+        } else if (*level == "error") {
+          logger.setLevel(logging::LogLevel::Error);
+        } else if (*level == "fatal") {
+          logger.setLevel(logging::LogLevel::Fatal);
+        } else if (*level == "off") {
+          logger.setLevel(logging::LogLevel::Off);
+        }
+      }
+      return Value(int64_t(0));
+    };
+    
+    Functions["logFlush"] = [](std::vector<Value> args) -> Value {
+      logging::Logger::getInstance().flush();
+      return Value(int64_t(0));
     };
     
     Functions["split"] = [](std::vector<Value> args) -> Value {
