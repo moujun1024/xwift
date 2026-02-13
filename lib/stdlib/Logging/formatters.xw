@@ -1,0 +1,154 @@
+import Foundation
+
+enum LogLevel {
+    case Trace
+    case Debug
+    case Info
+    case Warning
+    case Error
+    case Fatal
+    case Off
+}
+
+struct LogEntry {
+    let level: LogLevel
+    let message: String
+    let file: String
+    let line: Int
+    let function: String
+    let timestamp: Int64
+    
+    init(level: LogLevel, message: String, file: String = "", line: Int = 0, function: String = "") {
+        self.level = level
+        self.message = message
+        self.file = file
+        self.line = line
+        self.function = function
+        self.timestamp = Int64(Date().timeIntervalSince1970)
+    }
+}
+
+protocol LogFormatter {
+    func format(_ entry: LogEntry) -> String
+}
+
+class SimpleFormatter: LogFormatter {
+    func format(_ entry: LogEntry) -> String {
+        let date = Date(timeIntervalSince1970: Double(entry.timestamp))
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        let timeStr = formatter.string(from: date)
+        
+        let levelStr = levelToString(entry.level)
+        return "\(timeStr) [\(levelStr)] \(entry.message)"
+    }
+    
+    private func levelToString(_ level: LogLevel) -> String {
+        switch level {
+        case .Trace: return "TRACE"
+        case .Debug: return "DEBUG"
+        case .Info: return "INFO"
+        case .Warning: return "WARNING"
+        case .Error: return "ERROR"
+        case .Fatal: return "FATAL"
+        case .Off: return "OFF"
+        }
+    }
+}
+
+class DetailedFormatter: LogFormatter {
+    func format(_ entry: LogEntry) -> String {
+        let date = Date(timeIntervalSince1970: Double(entry.timestamp))
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
+        let timeStr = formatter.string(from: date)
+        
+        let levelStr = levelToString(entry.level)
+        var result = "\(timeStr) [\(levelStr)] "
+        
+        if !entry.file.isEmpty {
+            result += "\(entry.file)"
+            if entry.line > 0 {
+                result += ":\(entry.line)"
+            }
+            result += " - "
+        }
+        
+        if !entry.function.isEmpty {
+            result += "\(entry.function)() - "
+        }
+        
+        result += entry.message
+        return result
+    }
+    
+    private func levelToString(_ level: LogLevel) -> String {
+        switch level {
+        case .Trace: return "TRACE"
+        case .Debug: return "DEBUG"
+        case .Info: return "INFO"
+        case .Warning: return "WARNING"
+        case .Error: return "ERROR"
+        case .Fatal: return "FATAL"
+        case .Off: return "OFF"
+        }
+    }
+}
+
+class JsonFormatter: LogFormatter {
+    func format(_ entry: LogEntry) -> String {
+        let levelStr = levelToString(entry.level)
+        var result = "{"
+        result += "\"timestamp\":\(entry.timestamp),"
+        result += "\"level\":\"\(levelStr)\","
+        result += "\"message\":\"\(escapeJson(entry.message))\""
+        
+        if !entry.file.isEmpty {
+            result += ",\"file\":\"\(escapeJson(entry.file))\""
+        }
+        
+        if entry.line > 0 {
+            result += ",\"line\":\(entry.line)"
+        }
+        
+        if !entry.function.isEmpty {
+            result += ",\"function\":\"\(escapeJson(entry.function))\""
+        }
+        
+        result += "}"
+        return result
+    }
+    
+    private func levelToString(_ level: LogLevel) -> String {
+        switch level {
+        case .Trace: return "TRACE"
+        case .Debug: return "DEBUG"
+        case .Info: return "INFO"
+        case .Warning: return "WARNING"
+        case .Error: return "ERROR"
+        case .Fatal: return "FATAL"
+        case .Off: return "OFF"
+        }
+    }
+    
+    private func escapeJson(_ str: String) -> String {
+        return str
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\t", with: "\\t")
+    }
+}
+
+func createSimpleFormatter() -> LogFormatter {
+    return SimpleFormatter()
+}
+
+func createDetailedFormatter() -> LogFormatter {
+    return DetailedFormatter()
+}
+
+func createJsonFormatter() -> LogFormatter {
+    return JsonFormatter()
+}

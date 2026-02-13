@@ -1,0 +1,392 @@
+import Foundation
+
+class StringUtils {
+    static func isEmpty(_ str: String?) -> Bool {
+        return str == nil || str!.isEmpty
+    }
+    
+    static func isNotEmpty(_ str: String?) -> Bool {
+        return !isEmpty(str)
+    }
+    
+    static func trim(_ str: String) -> String {
+        return str.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    static func trimLeft(_ str: String) -> String {
+        return str.trimmingCharacters(in: .whitespaces)
+    }
+    
+    static func trimRight(_ str: String) -> String {
+        return str.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    static func split(_ str: String, separator: String) -> [String] {
+        return str.components(separatedBy: separator).filter { !$0.isEmpty }
+    }
+    
+    static func join(_ parts: [String], separator: String) -> String {
+        return parts.joined(separator: separator)
+    }
+    
+    static func replace(_ str: String, target: String, replacement: String) -> String {
+        return str.replacingOccurrences(of: target, with: replacement)
+    }
+    
+    static func contains(_ str: String, substring: String) -> Bool {
+        return str.contains(substring)
+    }
+    
+    static func startsWith(_ str: String, prefix: String) -> Bool {
+        return str.hasPrefix(prefix)
+    }
+    
+    static func endsWith(_ str: String, suffix: String) -> Bool {
+        return str.hasSuffix(suffix)
+    }
+    
+    static func toLowerCase(_ str: String) -> String {
+        return str.lowercased()
+    }
+    
+    static func toUpperCase(_ str: String) -> String {
+        return str.uppercased()
+    }
+    
+    static func capitalize(_ str: String) -> String {
+        guard !str.isEmpty else { return str }
+        let first = String(str.prefix(1)).capitalized
+        let rest = String(str.dropFirst())
+        return first + rest
+    }
+    
+    static func capitalizeWords(_ str: String) -> String {
+        return str.capitalized
+    }
+    
+    static func reverse(_ str: String) -> String {
+        return String(str.reversed())
+    }
+    
+    static func repeat(_ str: String, count: Int) -> String {
+        return String(repeating: str, count: count)
+    }
+    
+    static func padLeft(_ str: String, length: Int, character: Character = " ") -> String {
+        if str.count >= length { return str }
+        let padding = String(repeating: character, count: length - str.count)
+        return padding + str
+    }
+    
+    static func padRight(_ str: String, length: Int, character: Character = " ") -> String {
+        if str.count >= length { return str }
+        let padding = String(repeating: character, count: length - str.count)
+        return str + padding
+    }
+    
+    static func count(_ str: String, substring: String) -> Int {
+        return str.components(separatedBy: substring).count - 1
+    }
+    
+    static func indexOf(_ str: String, substring: String) -> Int? {
+        guard let range = str.range(of: substring) else { return nil }
+        return str.distance(from: str.startIndex, to: range.lowerBound)
+    }
+    
+    static func lastIndexOf(_ str: String, substring: String) -> Int? {
+        guard let range = str.range(of: substring, options: .backwards) else { return nil }
+        return str.distance(from: str.startIndex, to: range.lowerBound)
+    }
+    
+    static func substring(_ str: String, start: Int, end: Int? = nil) -> String {
+        let startIndex = str.index(str.startIndex, offsetBy: start)
+        let endIndex = end != nil ? str.index(str.startIndex, offsetBy: end!) : str.endIndex
+        return String(str[startIndex..<endIndex])
+    }
+    
+    static func truncate(_ str: String, length: Int, suffix: String = "...") -> String {
+        if str.count <= length { return str }
+        let endIndex = str.index(str.startIndex, offsetBy: length - suffix.count)
+        return String(str[..<endIndex]) + suffix
+    }
+    
+    static func isNumeric(_ str: String) -> Bool {
+        return Double(str) != nil
+    }
+    
+    static func isAlpha(_ str: String) -> Bool {
+        return str.allSatisfy { $0.isLetter }
+    }
+    
+    static func isAlphanumeric(_ str: String) -> Bool {
+        return str.allSatisfy { $0.isLetter || $0.isNumber }
+    }
+    
+    static func isEmail(_ str: String) -> Bool {
+        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+        let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
+        return emailPredicate.evaluate(with: str)
+    }
+    
+    static func isURL(_ str: String) -> Bool {
+        guard let url = URL(string: str) else { return false }
+        return url.scheme != nil
+    }
+    
+    static func base64Encode(_ str: String) -> String {
+        let data = str.data(using: .utf8)!
+        return data.base64EncodedString()
+    }
+    
+    static func base64Decode(_ str: String) -> String? {
+        guard let data = Data(base64Encoded: str) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+    
+    static func md5(_ str: String) -> String {
+        let data = str.data(using: .utf8)!
+        let hash = data.withUnsafeBytes { (bytes: UnsafeRawBufferPointer) -> [UInt8] in
+            var digest = [UInt8](repeating: 0, count: Int(CC_MD5_DIGEST_LENGTH))
+            CC_MD5(bytes.baseAddress, CC_LONG(data.count), &digest)
+            return digest
+        }
+        return hash.map { String(format: "%02x", $0) }.joined()
+    }
+    
+    static func sha256(_ str: String) -> String {
+        let data = str.data(using: .utf8)!
+        let hash = data.withUnsafeBytes { (bytes: UnsafeRawBufferPointer) -> [UInt8] in
+            var digest = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
+            CC_SHA256(bytes.baseAddress, CC_LONG(data.count), &digest)
+            return digest
+        }
+        return hash.map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+class DateUtils {
+    static func formatDate(_ date: Date, format: String = "yyyy-MM-dd HH:mm:ss") -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = format
+        return formatter.string(from: date)
+    }
+    
+    static func parseDate(_ str: String, format: String = "yyyy-MM-dd HH:mm:ss") -> Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = format
+        return formatter.date(from: str)
+    }
+    
+    static func now() -> Date {
+        return Date()
+    }
+    
+    static func timestamp() -> Int64 {
+        return Int64(Date().timeIntervalSince1970)
+    }
+    
+    static func timestampMillis() -> Int64 {
+        return Int64(Date().timeIntervalSince1970 * 1000)
+    }
+    
+    static func fromTimestamp(_ timestamp: Int64) -> Date {
+        return Date(timeIntervalSince1970: Double(timestamp))
+    }
+    
+    static func addDays(_ date: Date, days: Int) -> Date {
+        return Calendar.current.date(byAdding: .day, value: days, to: date)!
+    }
+    
+    static func addHours(_ date: Date, hours: Int) -> Date {
+        return Calendar.current.date(byAdding: .hour, value: hours, to: date)!
+    }
+    
+    static func addMinutes(_ date: Date, minutes: Int) -> Date {
+        return Calendar.current.date(byAdding: .minute, value: minutes, to: date)!
+    }
+    
+    static func addSeconds(_ date: Date, seconds: Int) -> Date {
+        return Calendar.current.date(byAdding: .second, value: seconds, to: date)!
+    }
+    
+    static func daysBetween(_ start: Date, end: Date) -> Int {
+        let components = Calendar.current.dateComponents([.day], from: start, to: end)
+        return components.day ?? 0
+    }
+    
+    static func hoursBetween(_ start: Date, end: Date) -> Int {
+        let components = Calendar.current.dateComponents([.hour], from: start, to: end)
+        return components.hour ?? 0
+    }
+    
+    static func minutesBetween(_ start: Date, end: Date) -> Int {
+        let components = Calendar.current.dateComponents([.minute], from: start, to: end)
+        return components.minute ?? 0
+    }
+    
+    static func secondsBetween(_ start: Date, end: Date) -> Int {
+        return Int(end.timeIntervalSince(start))
+    }
+}
+
+class ValidationUtils {
+    static func validateEmail(_ email: String) -> Bool {
+        return StringUtils.isEmail(email)
+    }
+    
+    static func validateURL(_ url: String) -> Bool {
+        return StringUtils.isURL(url)
+    }
+    
+    static func validatePhone(_ phone: String) -> Bool {
+        let phoneRegex = "^[0-9+\\-\\s()]{7,20}$"
+        let phonePredicate = NSPredicate(format: "SELF MATCHES %@", phoneRegex)
+        return phonePredicate.evaluate(with: phone)
+    }
+    
+    static func validateCreditCard(_ number: String) -> Bool {
+        let cleaned = number.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
+        guard cleaned.count >= 13 && cleaned.count <= 19 else { return false }
+        
+        var sum = 0
+        var alternate = false
+        
+        for i in stride(from: cleaned.count - 1, through: 0, by: -1) {
+            let digit = Int(String(cleaned[cleaned.index(cleaned.startIndex, offsetBy: i)])!
+            
+            if alternate {
+                var doubled = digit * 2
+                if doubled > 9 {
+                    doubled = doubled - 9
+                }
+                sum += doubled
+            } else {
+                sum += digit
+            }
+            
+            alternate = !alternate
+        }
+        
+        return sum % 10 == 0
+    }
+    
+    static func validateIP(_ ip: String) -> Bool {
+        let ipRegex = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+        let ipPredicate = NSPredicate(format: "SELF MATCHES %@", ipRegex)
+        return ipPredicate.evaluate(with: ip)
+    }
+    
+    static func validatePort(_ port: Int) -> Bool {
+        return port >= 1 && port <= 65535
+    }
+}
+
+class ArrayUtils {
+    static func isEmpty<T>(_ array: [T]?) -> Bool {
+        return array == nil || array!.isEmpty
+    }
+    
+    static func isNotEmpty<T>(_ array: [T]?) -> Bool {
+        return !isEmpty(array)
+    }
+    
+    static func first<T>(_ array: [T]) -> T? {
+        return array.first
+    }
+    
+    static func last<T>(_ array: [T]) -> T? {
+        return array.last
+    }
+    
+    static func contains<T: Equatable>(_ array: [T], element: T) -> Bool {
+        return array.contains(element)
+    }
+    
+    static func unique<T: Hashable>(_ array: [T]) -> [T] {
+        return Array(Set(array))
+    }
+    
+    static func chunk<T>(_ array: [T], size: Int) -> [[T]] {
+        var result: [[T]] = []
+        var current: [T] = []
+        
+        for element in array {
+            current.append(element)
+            if current.count == size {
+                result.append(current)
+                current = []
+            }
+        }
+        
+        if !current.isEmpty {
+            result.append(current)
+        }
+        
+        return result
+    }
+    
+    static func flatten<T>(_ arrays: [[T]]) -> [T] {
+        return arrays.flatMap { $0 }
+    }
+    
+    static func shuffle<T>(_ array: [T]) -> [T] {
+        return array.shuffled()
+    }
+    
+    static func sum<T: Numeric>(_ array: [T]) -> T {
+        return array.reduce(0, +)
+    }
+    
+    static func average<T: FloatingPoint>(_ array: [T]) -> T {
+        guard !array.isEmpty else { return 0 }
+        return sum(array) / T(array.count)
+    }
+    
+    static func min<T: Comparable>(_ array: [T]) -> T? {
+        return array.min()
+    }
+    
+    static func max<T: Comparable>(_ array: [T]) -> T? {
+        return array.max()
+    }
+}
+
+func isEmpty(_ str: String?) -> Bool {
+    return StringUtils.isEmpty(str)
+}
+
+func isEmpty<T>(_ array: [T]?) -> Bool {
+    return ArrayUtils.isEmpty(array)
+}
+
+func trim(_ str: String) -> String {
+    return StringUtils.trim(str)
+}
+
+func split(_ str: String, separator: String) -> [String] {
+    return StringUtils.split(str, separator: separator)
+}
+
+func join(_ parts: [String], separator: String) -> String {
+    return StringUtils.join(parts, separator: separator)
+}
+
+func formatDate(_ date: Date, format: String = "yyyy-MM-dd HH:mm:ss") -> String {
+    return DateUtils.formatDate(date, format: format)
+}
+
+func now() -> Date {
+    return DateUtils.now()
+}
+
+func timestamp() -> Int64 {
+    return DateUtils.timestamp()
+}
+
+func validateEmail(_ email: String) -> Bool {
+    return ValidationUtils.validateEmail(email)
+}
+
+func validateURL(_ url: String) -> Bool {
+    return ValidationUtils.validateURL(url)
+}

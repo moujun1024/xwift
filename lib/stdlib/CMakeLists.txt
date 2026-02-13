@@ -42,6 +42,14 @@ set(TERMINAL_SOURCES
   Terminal/Terminal.cpp
 )
 
+# XWift standard library modules (written in XWift itself)
+set(XWIFT_MODULES
+  Logging/formatters.xw
+  Filesystem/path_utils.xw
+  Config/config.xw
+  Utils/utils.xw
+)
+
 # Create libraries
 add_library(XWiftCollections STATIC ${COLLECTIONS_SOURCES})
 add_library(XWiftError STATIC ${ERROR_SOURCES})
@@ -130,4 +138,12 @@ target_include_directories(XWiftConcurrency PUBLIC
 
 target_include_directories(XWiftFilesystem PUBLIC
   ${CMAKE_SOURCE_DIR}/include
+)
+
+# Copy XWift standard library modules to build directory
+file(COPY ${XWIFT_MODULES} DESTINATION ${CMAKE_BINARY_DIR}/stdlib/)
+
+# Install XWift standard library modules
+install(FILES ${XWIFT_MODULES}
+  DESTINATION share/xwift/stdlib
 )

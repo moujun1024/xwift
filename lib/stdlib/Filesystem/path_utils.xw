@@ -1,0 +1,216 @@
+import Foundation
+
+class Path {
+    let path: String
+    
+    init(_ path: String) {
+        self.path = normalize(path)
+    }
+    
+    private func normalize(_ path: String) -> String {
+        var result = path
+        
+        #if os(Windows)
+        result = result.replacingOccurrences(of: "/", with: "\\")
+        #else
+        result = result.replacingOccurrences(of: "\\", with: "/")
+        #endif
+        
+        while result.contains("\\\\") {
+            result = result.replacingOccurrences(of: "\\\\", with: "\\")
+        }
+        
+        while result.contains("//") {
+            result = result.replacingOccurrences(of: "//", with: "/")
+        }
+        
+        return result
+    }
+    
+    func toString() -> String {
+        return path
+    }
+    
+    func extension() -> String {
+        if let dotIndex = path.lastIndex(of: ".") {
+            let slashIndex = path.lastIndex(of: "/") ?? path.lastIndex(of: "\\") ?? path.startIndex
+            if dotIndex > slashIndex {
+                return String(path[dotIndex...]).dropFirst()
+            }
+        }
+        return ""
+    }
+    
+    func fileName() -> String {
+        var result = path
+        
+        #if os(Windows)
+        if let slashIndex = result.lastIndex(of: "\\") {
+            result = String(result[slashIndex...]).dropFirst()
+        }
+        #else
+        if let slashIndex = result.lastIndex(of: "/") {
+            result = String(result[slashIndex...]).dropFirst()
+        }
+        #endif
+        
+        return result
+    }
+    
+    func parent() -> Path {
+        var result = path
+        
+        #if os(Windows)
+        if let slashIndex = result.lastIndex(of: "\\") {
+            result = String(result[..<slashIndex])
+        }
+        #else
+        if let slashIndex = result.lastIndex(of: "/") {
+            result = String(result[..<slashIndex])
+        }
+        #endif
+        
+        return Path(result)
+    }
+    
+    func join(_ other: String) -> Path {
+        var result = path
+        
+        #if os(Windows)
+        if !result.hasSuffix("\\") && !other.hasPrefix("\\") {
+            result += "\\"
+        }
+        #else
+        if !result.hasSuffix("/") && !other.hasPrefix("/") {
+            result += "/"
+        }
+        #endif
+        
+        result += other
+        return Path(result)
+    }
+    
+    func absolute() -> Path {
+        #if os(Windows)
+        if path.hasPrefix("\\\\") || (path.count >= 2 && path[path.index(path.startIndex, offsetBy: 1)] == ":") {
+            return self
+        }
+        #else
+        if path.hasPrefix("/") {
+            return self
+        }
+        #endif
+        
+        let cwd = currentWorkingDirectory()
+        return cwd.join(path)
+    }
+    
+    func exists() -> Bool {
+        return FileManager.default.fileExists(atPath: path)
+    }
+    
+    func isFile() -> Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDir) && !isDir.boolValue
+    }
+    
+    func isDirectory() -> Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDir) && isDir.boolValue
+    }
+    
+    func components() -> [String] {
+        var result = path
+        
+        #if os(Windows)
+        result = result.replacingOccurrences(of: "\\", with: "/")
+        #endif
+        
+        return result.split(separator: "/").filter { !$0.isEmpty }
+    }
+    
+    func stem() -> String {
+        let name = fileName()
+        if let dotIndex = name.lastIndex(of: ".") {
+            return String(name[..<dotIndex])
+        }
+        return name
+    }
+    
+    func withExtension(_ ext: String) -> Path {
+        let name = fileName()
+        let stem = self.stem()
+        let newName = stem + "." + ext
+        
+        return Path(parent().join(newName).toString())
+    }
+    
+    func withoutExtension() -> Path {
+        let name = stem()
+        return Path(parent().join(name).toString())
+    }
+    
+    func isAbsolute() -> Bool {
+        #if os(Windows)
+        return path.hasPrefix("\\\\") || (path.count >= 2 && path[path.index(path.startIndex, offsetBy: 1)] == ":")
+        #else
+        return path.hasPrefix("/")
+        #endif
+    }
+    
+    func isRelative() -> Bool {
+        return !isAbsolute()
+    }
+}
+
+func currentWorkingDirectory() -> Path {
+    return Path(FileManager.default.currentDirectoryPath)
+}
+
+func homeDirectory() -> Path {
+    return Path(NSHomeDirectory())
+}
+
+func tempDirectory() -> Path {
+    return Path(NSTemporaryDirectory())
+}
+
+func joinPaths(_ paths: [String]) -> Path {
+    var result = Path("")
+    for path in paths {
+        result = result.join(path)
+    }
+    return result
+}
+
+func normalizePath(_ path: String) -> String {
+    return Path(path).toString()
+}
+
+func pathExtension(_ path: String) -> String {
+    return Path(path).extension()
+}
+
+func pathFileName(_ path: String) -> String {
+    return Path(path).fileName()
+}
+
+func pathParent(_ path: String) -> Path {
+    return Path(path).parent()
+}
+
+func pathStem(_ path: String) -> String {
+    return Path(path).stem()
+}
+
+func pathExists(_ path: String) -> Bool {
+    return Path(path).exists()
+}
+
+func pathIsFile(_ path: String) -> Bool {
+    return Path(path).isFile()
+}
+
+func pathIsDirectory(_ path: String) -> Bool {
+    return Path(path).isDirectory()
+}

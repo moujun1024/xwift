@@ -1,0 +1,249 @@
+import Foundation
+import Logging
+import Filesystem
+import Config
+import Utils
+
+func testLoggingFormatters() {
+    print("=== 测试日志格式化 ===")
+    
+    let simpleFormatter = createSimpleFormatter()
+    let detailedFormatter = createDetailedFormatter()
+    let jsonFormatter = createJsonFormatter()
+    
+    let entry = LogEntry(
+        level: .Info,
+        message: "This is a test message",
+        file: "test.xw",
+        line: 42,
+        function: "testLogging"
+    )
+    
+    print("Simple: \(simpleFormatter.format(entry))")
+    print("Detailed: \(detailedFormatter.format(entry))")
+    print("JSON: \(jsonFormatter.format(entry))")
+    print("")
+}
+
+func testPathUtils() {
+    print("=== 测试路径工具 ===")
+    
+    let path1 = Path("folder/subfolder/file.txt")
+    print("Path: \(path1.toString())")
+    print("Extension: \(path1.extension())")
+    print("Filename: \(path1.fileName())")
+    print("Parent: \(path1.parent().toString())")
+    print("Stem: \(path1.stem())")
+    print("Absolute: \(path1.absolute().toString())")
+    print("")
+    
+    let path2 = Path("/usr/local/bin")
+    let joined = path2.join("python3")
+    print("Joined: \(joined.toString())")
+    print("")
+    
+    let path3 = Path("data.json")
+    print("With extension: \(path3.withExtension("xml").toString())")
+    print("Without extension: \(path3.withoutExtension().toString())")
+    print("")
+}
+
+func testConfig() {
+    print("=== 测试配置管理 ===")
+    
+    let config = createConfig()
+    print("Default config:")
+    print("  Version: \(config.getString("version"))")
+    print("  Debug: \(config.getBool("debug"))")
+    print("  Port: \(config.getInt("port"))")
+    print("  Host: \(config.getString("host"))")
+    print("  Timeout: \(config.getDouble("timeout"))")
+    print("")
+    
+    config.setString("database", value: "xwift_db")
+    config.setInt("maxConnections", value: 100)
+    config.setBool("enableCache", value: true)
+    
+    print("Updated config:")
+    print("  Database: \(config.getString("database"))")
+    print("  Max Connections: \(config.getInt("maxConnections"))")
+    print("  Enable Cache: \(config.getBool("enableCache"))")
+    print("")
+    
+    let jsonConfig = config.toJSON()
+    print("JSON Config:")
+    print(jsonConfig)
+    print("")
+}
+
+func testStringUtils() {
+    print("=== 测试字符串工具 ===")
+    
+    let text = "  Hello, XWift!  "
+    print("Original: '\(text)'")
+    print("Trimmed: '\(trim(text))'")
+    print("Lowercase: '\(toLowerCase(text))'")
+    print("Uppercase: '\(toUpperCase(text))'")
+    print("Capitalized: '\(StringUtils.capitalize(text))'")
+    print("")
+    
+    let sentence = "hello world from xwift"
+    print("Original: '\(sentence)'")
+    print("Capitalized words: '\(StringUtils.capitalizeWords(sentence))'")
+    print("Reversed: '\(StringUtils.reverse(sentence))'")
+    print("Repeated: '\(StringUtils.repeat("xwift ", count: 3))'")
+    print("")
+    
+    let data = "apple,banana,cherry,date"
+    let fruits = split(data, separator: ",")
+    print("Split: \(fruits)")
+    print("Joined: '\(join(fruits, separator: " | ")')")
+    print("")
+    
+    let email = "user@example.com"
+    print("Email: \(email)")
+    print("Valid email: \(validateEmail(email))")
+    print("")
+    
+    let url = "https://github.com/moujun1024/xwift"
+    print("URL: \(url)")
+    print("Valid URL: \(validateURL(url))")
+    print("")
+}
+
+func testDateUtils() {
+    print("=== 测试日期工具 ===")
+    
+    let now = now()
+    print("Current time: \(formatDate(now))")
+    print("Timestamp: \(timestamp())")
+    print("")
+    
+    let tomorrow = DateUtils.addDays(now, days: 1)
+    print("Tomorrow: \(formatDate(tomorrow))")
+    print("")
+    
+    let nextHour = DateUtils.addHours(now, hours: 2)
+    print("In 2 hours: \(formatDate(nextHour))")
+    print("")
+    
+    let days = DateUtils.daysBetween(now, end: tomorrow)
+    print("Days until tomorrow: \(days)")
+    print("")
+}
+
+func testArrayUtils() {
+    print("=== 测试数组工具 ===")
+    
+    let numbers = [5, 2, 8, 1, 9, 3, 7, 4, 6]
+    print("Numbers: \(numbers)")
+    print("First: \(ArrayUtils.first(numbers) ?? 0)")
+    print("Last: \(ArrayUtils.last(numbers) ?? 0)")
+    print("Min: \(ArrayUtils.min(numbers) ?? 0)")
+    print("Max: \(ArrayUtils.max(numbers) ?? 0)")
+    print("Sum: \(ArrayUtils.sum(numbers))")
+    print("Average: \(ArrayUtils.average(numbers))")
+    print("")
+    
+    let unique = ArrayUtils.unique(numbers)
+    print("Unique: \(unique)")
+    print("")
+    
+    let shuffled = ArrayUtils.shuffle(numbers)
+    print("Shuffled: \(shuffled)")
+    print("")
+    
+    let chunks = ArrayUtils.chunk(numbers, size: 3)
+    print("Chunks (size 3): \(chunks)")
+    print("")
+}
+
+func testValidation() {
+    print("=== 测试验证工具 ===")
+    
+    let emails = [
+        "user@example.com",
+        "invalid-email",
+        "test@test.org",
+        "noatsymbol.com"
+    ]
+    
+    print("Email validation:")
+    for email in emails {
+        print("  \(email): \(validateEmail(email))")
+    }
+    print("")
+    
+    let urls = [
+        "https://github.com",
+        "http://example.com",
+        "not-a-url",
+        "ftp://server.com"
+    ]
+    
+    print("URL validation:")
+    for url in urls {
+        print("  \(url): \(validateURL(url))")
+    }
+    print("")
+    
+    let ports = [80, 443, 8080, 0, 70000]
+    print("Port validation:")
+    for port in ports {
+        print("  \(port): \(ValidationUtils.validatePort(port))")
+    }
+    print("")
+}
+
+func testIntegration() {
+    print("=== 集成测试 ===")
+    
+    let config = createConfig()
+    let logPath = Path("logs").join("app.log")
+    
+    print("Config path: \(config.getString("host")):\(config.getInt("port"))")
+    print("Log file: \(logPath.toString())")
+    print("Current time: \(formatDate(now()))")
+    print("")
+    
+    let entry = LogEntry(
+        level: .Info,
+        message: "Application started",
+        file: "main.xw",
+        line: 1,
+        function: "main"
+    )
+    
+    let formatter = createDetailedFormatter()
+    print("Log entry: \(formatter.format(entry))")
+    print("")
+    
+    let message = "Hello from XWift!"
+    print("Message: \(message)")
+    print("Base64: \(StringUtils.base64Encode(message))")
+    print("Length: \(message.count)")
+    print("Words: \(split(message, separator: " ").count)")
+    print("")
+}
+
+func main() {
+    print("XWift 标准库模块测试")
+    print("========================")
+    print("")
+    
+    testLoggingFormatters()
+    testPathUtils()
+    testConfig()
+    testStringUtils()
+    testDateUtils()
+    testArrayUtils()
+    testValidation()
+    testIntegration()
+    
+    print("========================")
+    print("所有测试完成！")
+    print("这些模块都是用 XWift 自己的语言实现的，")
+    print("展示了 XWift 的能力和成熟度。")
+}
+
+main()

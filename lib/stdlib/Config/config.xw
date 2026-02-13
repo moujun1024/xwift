@@ -1,0 +1,240 @@
+import JSON
+
+enum ConfigError {
+    case FileNotFound(String)
+    case ParseError(String)
+    case InvalidFormat(String)
+    case MissingKey(String)
+}
+
+struct ConfigValue {
+    let value: Any
+    
+    init(_ value: Any) {
+        self.value = value
+    }
+    
+    func asString() -> String? {
+        if let str = value as? String {
+            return str
+        }
+        return nil
+    }
+    
+    func asInt() -> Int? {
+        if let num = value as? Int {
+            return num
+        }
+        if let str = value as? String, let num = Int(str) {
+            return num
+        }
+        return nil
+    }
+    
+    func asDouble() -> Double? {
+        if let num = value as? Double {
+            return num
+        }
+        if let num = value as? Int {
+            return Double(num)
+        }
+        if let str = value as? String, let num = Double(str) {
+            return num
+        }
+        return nil
+    }
+    
+    func asBool() -> Bool? {
+        if let bool = value as? Bool {
+            return bool
+        }
+        if let str = value as? String {
+            if str.lowercased() == "true" || str == "1" {
+                return true
+            }
+            if str.lowercased() == "false" || str == "0" {
+                return false
+            }
+        }
+        if let num = value as? Int {
+            return num != 0
+        }
+        return nil
+    }
+    
+    func asArray() -> [ConfigValue]? {
+        if let arr = value as? [Any] {
+            return arr.map { ConfigValue($0) }
+        }
+        return nil
+    }
+    
+    func asDictionary() -> [String: ConfigValue]? {
+        if let dict = value as? [String: Any] {
+            var result: [String: ConfigValue] = [:]
+            for (key, val) in dict {
+                result[key] = ConfigValue(val)
+            }
+            return result
+        }
+        return nil
+    }
+}
+
+class Config {
+    private var data: [String: ConfigValue]
+    
+    init() {
+        self.data = [:]
+    }
+    
+    init(data: [String: ConfigValue]) {
+        self.data = data
+    }
+    
+    func get(_ key: String) -> ConfigValue? {
+        return data[key]
+    }
+    
+    func getString(_ key: String, defaultValue: String = "") -> String {
+        return get(key)?.asString() ?? defaultValue
+    }
+    
+    func getInt(_ key: String, defaultValue: Int = 0) -> Int {
+        return get(key)?.asInt() ?? defaultValue
+    }
+    
+    func getDouble(_ key: String, defaultValue: Double = 0.0) -> Double {
+        return get(key)?.asDouble() ?? defaultValue
+    }
+    
+    func getBool(_ key: String, defaultValue: Bool = false) -> Bool {
+        return get(key)?.asBool() ?? defaultValue
+    }
+    
+    func getArray(_ key: String) -> [ConfigValue]? {
+        return get(key)?.asArray()
+    }
+    
+    func getDictionary(_ key: String) -> [String: ConfigValue]? {
+        return get(key)?.asDictionary()
+    }
+    
+    func set(_ key: String, value: ConfigValue) {
+        data[key] = value
+    }
+    
+    func setString(_ key: String, value: String) {
+        set(key, value: ConfigValue(value))
+    }
+    
+    func setInt(_ key: String, value: Int) {
+        set(key, value: ConfigValue(value))
+    }
+    
+    func setDouble(_ key: String, value: Double) {
+        set(key, value: ConfigValue(value))
+    }
+    
+    func setBool(_ key: String, value: Bool) {
+        set(key, value: ConfigValue(value))
+    }
+    
+    func has(_ key: String) -> Bool {
+        return data[key] != nil
+    }
+    
+    func remove(_ key: String) {
+        data.removeValue(forKey: key)
+    }
+    
+    func keys() -> [String] {
+        return Array(data.keys)
+    }
+    
+    func toDictionary() -> [String: Any] {
+        var result: [String: Any] = [:]
+        for (key, val) in data {
+            result[key] = val.value
+        }
+        return result
+    }
+    
+    func toJSON() -> String {
+        let dict = toDictionary()
+        return JSON.stringify(dict)
+    }
+}
+
+class ConfigLoader {
+    static func loadFromFile(_ path: String) -> Result<Config, ConfigError> {
+        guard let content = readFile(path) else {
+            return .failure(.FileNotFound(path))
+        }
+        
+        return loadFromString(content)
+    }
+    
+    static func loadFromString(_ content: String) -> Result<Config, ConfigError> {
+        guard let json = JSON.parse(content) else {
+            return .failure(.ParseError("Invalid JSON format"))
+        }
+        
+        guard let dict = json as? [String: Any] else {
+            return .failure(.InvalidFormat("Config must be an object"))
+        }
+        
+        var configData: [String: ConfigValue] = [:]
+        for (key, val) in dict {
+            configData[key] = ConfigValue(val)
+        }
+        
+        return .success(Config(data: configData))
+    }
+    
+    static func saveToFile(_ config: Config, path: String) -> Bool {
+        let json = config.toJSON()
+        return writeFile(path, content: json)
+    }
+    
+    static func merge(_ configs: [Config]) -> Config {
+        var merged: [String: ConfigValue] = [:]
+        
+        for config in configs {
+            for key in config.keys() {
+                if let value = config.get(key) {
+                    merged[key] = value
+                }
+            }
+        }
+        
+        return Config(data: merged)
+    }
+    
+    static func createDefault() -> Config {
+        let config = Config()
+        config.setString("version", value: "1.0.0")
+        config.setBool("debug", value: false)
+        config.setInt("port", value: 8080)
+        config.setString("host", value: "localhost")
+        config.setDouble("timeout", value: 30.0)
+        return config
+    }
+}
+
+func loadConfig(_ path: String) -> Config? {
+    switch ConfigLoader.loadFromFile(path) {
+    case .success(let config):
+        return config
+    case .failure:
+        return nil
+    }
+}
+
+func saveConfig(_ config: Config, path: String) -> Bool {
+    return ConfigLoader.saveToFile(config, path: path)
+}
+
+func createConfig() -> Config {
+    return ConfigLoader.createDefault()
+}
