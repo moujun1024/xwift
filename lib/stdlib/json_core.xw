@@ -1,0 +1,107 @@
+func parseJson(jsonStr) -> String {
+  return jsonParse(jsonStr)
+}
+
+func getJson(jsonStr, key) -> String {
+  return jsonGet(jsonStr, key)
+}
+
+func hasJsonKey(jsonStr, key) -> Bool {
+  return jsonHasKey(jsonStr, key)
+}
+
+func getJsonInt(jsonStr, key) -> Int {
+  var value = jsonGet(jsonStr, key)
+  return toInt(value)
+}
+
+func getJsonBool(jsonStr, key) -> Bool {
+  var value = jsonGet(jsonStr, key)
+  if value == "true" {
+    return true
+  } else if value == "false" {
+    return false
+  }
+  return false
+}
+
+func getJsonString(jsonStr, key) -> String {
+  return jsonGet(jsonStr, key)
+}
+
+func getJsonArray(jsonStr, key) -> String {
+  return jsonGet(jsonStr, key)
+}
+
+func parseJsonArray(jsonStr) -> Array {
+  var result = []
+  var jsonValue = jsonParse(jsonStr)
+  if len(jsonValue) > 0 {
+    if substring(jsonValue, 0, 1) == "[" {
+      var content = substring(jsonValue, 1, len(jsonValue) - 2)
+      var parts = split(content, ",")
+      var i = 0
+      while i < len(parts) {
+        var part = trim(parts[i])
+        if len(part) > 0 {
+          result = append(result, part)
+        }
+        i = i + 1
+      }
+    }
+  }
+  return result
+}
+
+func parseJsonObject(jsonStr) -> String {
+  return jsonParse(jsonStr)
+}
+
+func getJsonKeys(jsonStr) -> Array {
+  var result = []
+  var jsonValue = jsonParse(jsonStr)
+  if len(jsonValue) > 0 {
+    if substring(jsonValue, 0, 1) == "{" {
+      var content = substring(jsonValue, 1, len(jsonValue) - 2)
+      var inString = false
+      var escaped = false
+      var current = ""
+      var i = 0
+      while i < len(content) {
+        var c = substring(content, i, 1)
+        if !escaped && c == "\\" {
+          escaped = true
+        } else if !escaped && c == "\"" {
+          inString = !inString
+        } else if !inString && c == ":" {
+          if len(current) > 0 {
+            var key = trim(current)
+            if len(key) >= 2 {
+              if substring(key, 0, 1) == "\"" {
+                var end = find(key, "\"", 1)
+                if end > 0 {
+                  key = substring(key, 1, end - 1)
+                }
+              }
+            }
+            result = append(result, key)
+          }
+          current = ""
+        } else if !inString && c == "," {
+          current = ""
+        } else {
+          current = current + c
+        }
+        if escaped {
+          escaped = false
+        }
+        i = i + 1
+      }
+    }
+  }
+  return result
+}
+
+func jsonToString(jsonValue) -> String {
+  return jsonParse(jsonValue)
+}

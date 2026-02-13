@@ -1,0 +1,14 @@
+{
+  "iconDefinitions": {
+    "xwift-file": {
+      "iconPath": "./Logo.svg"
+    }
+  },
+  "file": "xwift-file",
+  "fileExtensions": {
+    "xw": "xwift-file"
+  },
+  "languageId": {
+    "xwift": "xwift-file"
+  }
+}

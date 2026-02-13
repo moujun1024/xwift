@@ -1,0 +1,15 @@
+build/
+.vscode/
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+.DS_Store
+Thumbs.db
+node_modules/
+dist/
+*.log

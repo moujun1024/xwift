@@ -1,0 +1,165 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "XWift",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#attributes"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.xwift",
+          "begin": "//",
+          "end": "$"
+        },
+        {
+          "name": "comment.block.xwift",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.xwift",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.xwift",
+              "match": "\\\\."
+            },
+            {
+              "name": "constant.character.escape.xwift",
+              "match": "\\\\(u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.xwift",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.xwift",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.xwift",
+          "match": "\\b\\d+(\\.\\d+)?\\b"
+        },
+        {
+          "name": "constant.numeric.hex.xwift",
+          "match": "\\b0x[0-9a-fA-F]+\\b"
+        },
+        {
+          "name": "constant.numeric.octal.xwift",
+          "match": "\\b0o[0-7]+\\b"
+        },
+        {
+          "name": "constant.numeric.binary.xwift",
+          "match": "\\b0b[01]+\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.xwift",
+          "match": "\\b(func|var|let|if|else|for|while|switch|case|default|return|break|continue|import|class|struct|enum|protocol|extension|guard|defer|do|try|catch|throw|throws|rethrows|async|await|static|private|public|internal|fileprivate|open|final|override|mutating|lazy|weak|unowned|init|deinit|get|set|willSet|didSet|subscript|typealias|associatedtype|where|inout|some|any|is|as|nil|true|false)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.xwift",
+          "match": "\\b(Int|Int8|Int16|Int32|Int64|UInt|UInt8|UInt16|UInt32|UInt64|Float|Float32|Float64|Double|String|Character|Bool|Array|Dictionary|Set|Optional|Any|AnyObject|Void|Never|Data|Date|URL|UUID)\\b"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.xwift",
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()"
+        }
+      ]
+    },
+    "attributes": {
+      "patterns": [
+        {
+          "name": "meta.attribute.xwift",
+          "match": "@\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arithmetic.xwift",
+          "match": "(\\+|\\-|\\*|/|%)"
+        },
+        {
+          "name": "keyword.operator.assignment.xwift",
+          "match": "(=|\\+=|\\-=|\\*=|/=|%=)"
+        },
+        {
+          "name": "keyword.operator.comparison.xwift",
+          "match": "(==|!=|>|<|>=|<=|===|!==)"
+        },
+        {
+          "name": "keyword.operator.logical.xwift",
+          "match": "(&&|\\|\\||!|\\^)"
+        },
+        {
+          "name": "keyword.operator.range.xwift",
+          "match": "(\\.\\.<|\\.\\.\\.|\\.\\.<|\\.\\.\\.|\\.\\.\\.<|\\.\\.\\.<)"
+        },
+        {
+          "name": "keyword.operator.optional.xwift",
+          "match": "(\\?|\\!)"
+        },
+        {
+          "name": "keyword.operator.bitwise.xwift",
+          "match": "(<<|>>|&|\\||\\^|~)"
+        },
+        {
+          "name": "keyword.operator.tuple.xwift",
+          "match": "(,|\\.)"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.xwift"
+}

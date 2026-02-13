@@ -1,0 +1,24 @@
+func buildUrl(baseUrl, path, params) -> String {
+  var result = baseUrl + path
+  if len(params) > 0 {
+    var parts = []
+    var i = 0
+    while i < len(params) {
+      parts = append(parts, params[i])
+      i = i + 1
+    }
+    var query = join(parts, "&")
+    result = result + "?" + query
+  }
+  return result
+}
+
+func main() -> Int {
+  println("=== XWift HTTP Standard Library Test ===")
+  
+  var url = buildUrl("https://api.example.com", "/search", ["q=hello", "page=1"])
+  println("URL: " + url)
+  
+  println("\n=== Test completed successfully ===")
+  return 0
+}

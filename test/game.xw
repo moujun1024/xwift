@@ -1,0 +1,11 @@
+func testFunc() {
+  var x = "hello"
+  if x == "hello" {
+    println("equal")
+  }
+}
+
+func main() -> Int {
+  testFunc()
+  return 0
+}
