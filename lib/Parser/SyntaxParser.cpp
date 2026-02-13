@@ -459,7 +459,13 @@ std::unique_ptr<Expr> SyntaxParser::parseBinaryExpression(int minPrecedence) {
     
     advance();
     auto rhs = parseBinaryExpression(precedence + 1);
-    lhs = std::make_unique<BinaryExpr>(op, std::move(lhs), std::move(rhs), opLoc);
+    
+    // Handle && operator specially to avoid issues with operator location
+    if (op == "&&") {
+      lhs = std::make_unique<BinaryExpr>("&&", std::move(lhs), std::move(rhs), opLoc);
+    } else {
+      lhs = std::make_unique<BinaryExpr>(op, std::move(lhs), std::move(rhs), opLoc);
+    }
   }
   
   return lhs;

@@ -134,6 +134,7 @@ enum class TokenKind {
   op_tilde,
   op_bang,
   op_question,
+  op_amp_amp,  // &&
   
   op_eq,
   op_plus_eq,

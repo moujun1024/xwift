@@ -1,0 +1,422 @@
+// XWift Terminal Snake Game
+// A complete snake game implementation using XWift terminal module
+
+import stdlib.Collections.Array
+import stdlib.Collections.Dictionary
+import stdlib.Terminal
+
+// Game constants
+let BOARD_WIDTH = 40
+let BOARD_HEIGHT = 20
+let INITIAL_SNAKE_LENGTH = 3
+let GAME_SPEED = 100 // milliseconds between moves
+
+// Direction enum
+enum Direction {
+    case Up
+    case Down
+    case Left
+    case Right
+}
+
+// Position struct
+struct Position {
+    let x: Int
+    let y: Int
+    
+    init(x: Int, y: Int) {
+        self.x = x
+        self.y = y
+    }
+    
+    func move(direction: Direction) -> Position {
+        switch direction {
+        case Up:
+            return Position(x: x, y: y - 1)
+        case Down:
+            return Position(x: x, y: y + 1)
+        case Left:
+            return Position(x: x - 1, y: y)
+        case Right:
+            return Position(x: x + 1, y: y)
+        }
+    }
+    
+    func equals(other: Position) -> Bool {
+        return x == other.x && y == other.y
+    }
+}
+
+// Snake segment
+struct SnakeSegment {
+    let position: Position
+    let isHead: Bool
+    
+    init(position: Position, isHead: Bool = false) {
+        self.position = position
+        self.isHead = isHead
+    }
+}
+
+// Game state
+enum GameState {
+    case NotStarted
+    case Running
+    case Paused
+    case GameOver
+    case Won
+}
+
+// Food type
+enum FoodType {
+    case Normal
+    case Bonus
+    case Speed
+}
+
+// Food item
+struct Food {
+    let position: Position
+    let type: FoodType
+    
+    init(position: Position, type: FoodType = .Normal) {
+        self.position = position
+        self.type = type
+    }
+}
+
+// Snake game class
+class SnakeGame {
+    private let width: Int
+    private let height: Int
+    private var snake: Array<SnakeSegment>
+    private var food: Food
+    private var direction: Direction
+    private var gameState: GameState
+    private var score: Int
+    private var gameSpeed: Int
+    private var isGameOver: Bool
+    
+    init(width: Int, height: Int) {
+        self.width = width
+        self.height = height
+        self.snake = Array<SnakeSegment>()
+        self.direction = .Right
+        self.gameState = .NotStarted
+        self.score = 0
+        self.gameSpeed = GAME_SPEED
+        self.isGameOver = false
+    }
+    
+    // Initialize the game
+    func initialize() {
+        // Create initial snake
+        let startX = width / 2
+        let startY = height / 2
+        
+        for i in 0..<INITIAL_SNAKE_LENGTH {
+            let segment = SnakeSegment(
+                position: Position(x: startX - i, y: startY),
+                isHead: i == 0
+            )
+            snake.append(segment)
+        }
+        
+        // Place initial food
+        placeFood()
+        
+        gameState = .NotStarted
+    }
+    
+    // Place food at random position
+    private func placeFood() {
+        var foodPosition: Position
+        var validPosition = false
+        
+        while !validPosition {
+            foodPosition = Position(
+                x: randomInt(1, width - 2),
+                y: randomInt(1, height - 2)
+            )
+            
+            // Check if position is not on snake
+            validPosition = true
+            for segment in snake {
+                if segment.position.equals(foodPosition) {
+                    validPosition = false
+                    break
+                }
+            }
+        }
+        
+        // 10% chance for bonus food
+        let foodType = randomInt(1, 10) == 1 ? .Bonus : .Normal
+        food = Food(position: foodPosition, type: foodType)
+    }
+    
+    // Start the game
+    func start() {
+        gameState = .Running
+        gameLoop()
+    }
+    
+    // Main game loop
+    private func gameLoop() {
+        while gameState == .Running {
+            // Clear screen
+            clearScreen()
+            
+            // Draw game board
+            drawBoard()
+            drawSnake()
+            drawFood()
+            drawScore()
+            
+            // Handle input
+            handleInput()
+            
+            // Update game state
+            updateGame()
+            
+            // Control game speed
+            sleepMs(gameSpeed)
+            
+            // Check game over
+            if isGameOver {
+                gameState = .GameOver
+                showGameOver()
+            }
+        }
+    }
+    
+    // Handle keyboard input
+    private func handleInput() {
+        if hasInput() {
+            let key = getKey()
+            
+            switch key {
+                case "w", "W":
+                    if direction != .Down {
+                        direction = .Up
+                    }
+                case "s", "S":
+                    if direction != .Up {
+                        direction = .Down
+                    }
+                case "a", "A":
+                    if direction != .Right {
+                        direction = .Left
+                    }
+                case "d", "D":
+                    if direction != .Left {
+                        direction = .Right
+                    }
+                case "q", "Q":
+                    gameState = .Paused
+                    showPausedMenu()
+                case "r", "R":
+                    if gameState == .Paused || gameState == .GameOver {
+                        resetGame()
+                        gameState = .Running
+                    }
+                default:
+                    break
+            }
+        }
+    }
+    
+    // Update game state
+    private func updateGame() {
+        if gameState != .Running {
+            return
+        }
+        
+        // Move snake head
+        let head = snake[0]
+        let newHeadPosition = head.position.move(direction: direction)
+        
+        // Check wall collision
+        if newHeadPosition.x < 0 || newHeadPosition.x >= width ||
+           newHeadPosition.y < 0 || newHeadPosition.y >= height {
+            isGameOver = true
+            return
+        }
+        
+        // Check self collision
+        for i in 1..<snake.count {
+            if snake[i].position.equals(newHeadPosition) {
+                isGameOver = true
+                return
+            }
+        }
+        
+        // Move snake
+        let newHead = SnakeSegment(position: newHeadPosition, isHead: true)
+        snake[0] = newHead
+        
+        // Move body segments
+        for i in (1..<snake.count).reversed() {
+            snake[i] = SnakeSegment(position: snake[i-1].position, isHead: false)
+        }
+        
+        // Check food collision
+        if head.position.equals(food.position) {
+            score += food.type == .Bonus ? 5 : 1
+            placeFood()
+            
+            // Increase speed for bonus food
+            if food.type == .Speed {
+                gameSpeed = max(50, gameSpeed - 10)
+            }
+        }
+    }
+    
+    // Draw game board
+    private func drawBoard() {
+        // Draw border
+        setColor(7) // White
+        for y in 0...height {
+            moveCursor(0, y)
+            print("+")
+            moveCursor(width - 1, y)
+            print("+")
+        }
+        
+        // Draw corners
+        moveCursor(0, 0)
+        print("+")
+        moveCursor(width - 1, 0)
+        print("+")
+        moveCursor(0, height - 1)
+        print("+")
+        moveCursor(width - 1, height - 1)
+        print("+")
+        
+        resetColor()
+    }
+    
+    // Draw snake
+    private func drawSnake() {
+        for segment in snake {
+            if segment.isHead {
+                setColor(2) // Green
+            } else {
+                setColor(3) // Cyan
+            }
+            
+            moveCursor(segment.position.x, segment.position.y)
+            print("■")
+        }
+        
+        resetColor()
+    }
+    
+    // Draw food
+    private func drawFood() {
+        switch food.type {
+        case .Normal:
+            setColor(4) // Red
+        case .Bonus:
+            setColor(5) // Magenta
+        case .Speed:
+            setColor(6) // Yellow
+        }
+        
+        moveCursor(food.position.x, food.position.y)
+        print("●")
+        
+        resetColor()
+    }
+    
+    // Draw score
+    private func drawScore() {
+        setColor(8) // Gray
+        moveCursor(0, height)
+        print("Score: \(score)")
+        resetColor()
+    }
+    
+    // Show game over screen
+    private func showGameOver() {
+        clearScreen()
+        
+        setColor(1) // Red
+        moveCursor(width / 2 - 5, height / 2 - 2)
+        print("GAME OVER")
+        
+        moveCursor(width / 2 - 7, height / 2)
+        print("Score: \(score)")
+        
+        resetColor()
+        
+        moveCursor(0, height)
+        print("Press 'R' to restart or 'Q' to quit")
+    }
+    
+    // Show paused menu
+    private func showPausedMenu() {
+        clearScreen()
+        
+        setColor(3) // Cyan
+        moveCursor(width / 2 - 4, height / 2 - 3)
+        print("PAUSED")
+        
+        moveCursor(width / 2 - 6, height / 2)
+        print("Press 'R' to resume")
+        
+        moveCursor(width / 2 - 5, height / 2)
+        print("Press 'Q' to quit")
+        
+        resetColor()
+    }
+    
+    // Reset game
+    private func resetGame() {
+        snake.removeAll()
+        score = 0
+        gameSpeed = GAME_SPEED
+        isGameOver = false
+        direction = .Right
+        initialize()
+    }
+}
+
+// Main entry point
+func main() {
+    // Initialize terminal
+    hideCursor()
+    clearScreen()
+    
+    // Create and initialize game
+    let game = SnakeGame(width: BOARD_WIDTH, height: BOARD_HEIGHT)
+    game.initialize()
+    
+    // Show welcome message
+    setColor(6) // Yellow
+    moveCursor(BOARD_WIDTH / 2 - 7, 3)
+    print("XWIFT SNAKE GAME")
+    
+    moveCursor(BOARD_WIDTH / 2 - 4, 5)
+    print("Press any key to start")
+    
+    resetColor()
+    
+    // Wait for any key to start
+    while !hasInput() {
+        sleepMs(100)
+    }
+    
+    // Clear input buffer and start game
+    while hasInput() {
+        getKey() // Clear input buffer
+    }
+    
+    // Start the game
+    game.start()
+    
+    // Show cursor before exit
+    showCursor()
+    
+    print("Thanks for playing!")
+    exit(0)
+}
