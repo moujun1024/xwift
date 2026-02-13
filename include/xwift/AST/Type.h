@@ -2,6 +2,7 @@
 #define XWIFT_AST_TYPE_H
 
 #include "xwift/Basic/LLVM.h"
+#include <memory>
 
 namespace xwift {
 
@@ -16,6 +17,7 @@ public:
   virtual bool isInteger() const { return false; }
   virtual bool isFloat() const { return false; }
   virtual bool isVoid() const { return false; }
+  virtual bool isOptional() const { return false; }
 };
 
 class BuiltinType : public Type {
@@ -72,6 +74,24 @@ public:
   
   bool isVoid() const override {
     return TyKind == Void;
+  }
+};
+
+class OptionalType : public Type {
+public:
+  std::shared_ptr<Type> WrappedType;
+  
+  OptionalType(std::shared_ptr<Type> wrapped) 
+    : WrappedType(std::move(wrapped)) {
+    Name = WrappedType->Name.str() + "?";
+  }
+  
+  bool isOptional() const override {
+    return true;
+  }
+  
+  std::shared_ptr<Type> getWrappedType() const {
+    return WrappedType;
   }
 };
 

@@ -118,6 +118,7 @@ enum class TokenKind {
   punct_dot,
   punct_dot_dot,
   punct_question,
+  punct_question_dot,
   punct_exclaim,
   punct_equal,
   punct_arrow,

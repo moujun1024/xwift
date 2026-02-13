@@ -43,49 +43,71 @@ bool Sema::isBuiltinFunction(const std::string& name) {
 }
 
 std::shared_ptr<Type> Sema::lookupType(const std::string& name) {
-  if (name == "Int" || name == "Int64") {
-    return std::make_shared<BuiltinType>(BuiltinType::Int64);
+  if (name.empty()) {
+    return nullptr;
   }
-  if (name == "Int32") {
-    return std::make_shared<BuiltinType>(BuiltinType::Int32);
+  
+  bool isOptional = false;
+  std::string baseName = name;
+  
+  if (name.back() == '?') {
+    isOptional = true;
+    baseName = name.substr(0, name.length() - 1);
   }
-  if (name == "Int16") {
-    return std::make_shared<BuiltinType>(BuiltinType::Int16);
+  
+  std::shared_ptr<Type> baseType;
+  
+  if (baseName == "Int" || baseName == "Int64") {
+    baseType = std::make_shared<BuiltinType>(BuiltinType::Int64);
   }
-  if (name == "Int8") {
-    return std::make_shared<BuiltinType>(BuiltinType::Int8);
+  else if (baseName == "Int32") {
+    baseType = std::make_shared<BuiltinType>(BuiltinType::Int32);
   }
-  if (name == "UInt" || name == "UInt64") {
-    return std::make_shared<BuiltinType>(BuiltinType::UInt64);
+  else if (baseName == "Int16") {
+    baseType = std::make_shared<BuiltinType>(BuiltinType::Int16);
   }
-  if (name == "UInt32") {
-    return std::make_shared<BuiltinType>(BuiltinType::UInt32);
+  else if (baseName == "Int8") {
+    baseType = std::make_shared<BuiltinType>(BuiltinType::Int8);
   }
-  if (name == "UInt16") {
-    return std::make_shared<BuiltinType>(BuiltinType::UInt16);
+  else if (baseName == "UInt" || baseName == "UInt64") {
+    baseType = std::make_shared<BuiltinType>(BuiltinType::UInt64);
   }
-  if (name == "UInt8") {
-    return std::make_shared<BuiltinType>(BuiltinType::UInt8);
+  else if (baseName == "UInt32") {
+    baseType = std::make_shared<BuiltinType>(BuiltinType::UInt32);
   }
-  if (name == "Float") {
-    return std::make_shared<BuiltinType>(BuiltinType::Float);
+  else if (baseName == "UInt16") {
+    baseType = std::make_shared<BuiltinType>(BuiltinType::UInt16);
   }
-  if (name == "Double") {
-    return std::make_shared<BuiltinType>(BuiltinType::Double);
+  else if (baseName == "UInt8") {
+    baseType = std::make_shared<BuiltinType>(BuiltinType::UInt8);
   }
-  if (name == "Bool") {
-    return std::make_shared<BuiltinType>(BuiltinType::Bool);
+  else if (baseName == "Float") {
+    baseType = std::make_shared<BuiltinType>(BuiltinType::Float);
   }
-  if (name == "String") {
-    return std::make_shared<BuiltinType>(BuiltinType::String);
+  else if (baseName == "Double") {
+    baseType = std::make_shared<BuiltinType>(BuiltinType::Double);
   }
-  if (name == "Void") {
-    return std::make_shared<BuiltinType>(BuiltinType::Void);
+  else if (baseName == "Bool") {
+    baseType = std::make_shared<BuiltinType>(BuiltinType::Bool);
   }
-  if (name == "Any") {
-    return std::make_shared<BuiltinType>(BuiltinType::Any);
+  else if (baseName == "String") {
+    baseType = std::make_shared<BuiltinType>(BuiltinType::String);
   }
-  return nullptr;
+  else if (baseName == "Void") {
+    baseType = std::make_shared<BuiltinType>(BuiltinType::Void);
+  }
+  else if (baseName == "Any") {
+    baseType = std::make_shared<BuiltinType>(BuiltinType::Any);
+  }
+  else {
+    return nullptr;
+  }
+  
+  if (isOptional) {
+    return std::make_shared<OptionalType>(baseType);
+  }
+  
+  return baseType;
 }
 
 bool Sema::addSymbol(const std::string& name, std::shared_ptr<Type> type) {
@@ -383,6 +405,18 @@ bool Sema::visit(Expr* expr) {
     return visit(arrIdx);
   }
   
+  if (auto nilLit = dynamic_cast<NilLiteralExpr*>(expr)) {
+    return visit(nilLit);
+  }
+  
+  if (auto optUnwrap = dynamic_cast<OptionalUnwrapExpr*>(expr)) {
+    return visit(optUnwrap);
+  }
+  
+  if (auto optChain = dynamic_cast<OptionalChainExpr*>(expr)) {
+    return visit(optChain);
+  }
+  
   return true;
 }
 
@@ -397,6 +431,14 @@ bool Sema::visit(Stmt* stmt) {
   
   if (auto ifStmt = dynamic_cast<IfStmt*>(stmt)) {
     return visit(ifStmt);
+  }
+  
+  if (auto ifLetStmt = dynamic_cast<IfLetStmt*>(stmt)) {
+    return visit(ifLetStmt);
+  }
+  
+  if (auto guardStmt = dynamic_cast<GuardStmt*>(stmt)) {
+    return visit(guardStmt);
   }
   
   if (auto whileStmt = dynamic_cast<WhileStmt*>(stmt)) {
@@ -786,6 +828,142 @@ bool Sema::visit(ArrayIndexExpr* expr) {
   }
   
   expr->ExprType = arrayType;
+  
+  return true;
+}
+
+bool Sema::visit(NilLiteralExpr* lit) {
+  if (!lit) {
+    return false;
+  }
+  
+  lit->ExprType = std::make_shared<BuiltinType>(BuiltinType::Any);
+  
+  return true;
+}
+
+bool Sema::visit(OptionalUnwrapExpr* expr) {
+  if (!expr) {
+    return false;
+  }
+  
+  visit(expr->Target.get());
+  
+  auto targetType = getExprType(expr->Target.get());
+  if (!targetType) {
+    return false;
+  }
+  
+  if (!targetType->isOptional()) {
+    if (expr->IsForceUnwrap) {
+      Diags.report(DiagLevel::Error, "Cannot force unwrap non-optional value", expr->Loc, currentFilename);
+    } else {
+      Diags.report(DiagLevel::Error, "Cannot use optional chaining on non-optional value", expr->Loc, currentFilename);
+    }
+    return false;
+  }
+  
+  auto optionalType = std::dynamic_pointer_cast<OptionalType>(targetType);
+  if (optionalType) {
+    expr->ExprType = optionalType->getWrappedType();
+  } else {
+    expr->ExprType = targetType;
+  }
+  
+  return true;
+}
+
+bool Sema::visit(OptionalChainExpr* expr) {
+  if (!expr) {
+    return false;
+  }
+  
+  visit(expr->Target.get());
+  
+  auto targetType = getExprType(expr->Target.get());
+  if (!targetType) {
+    return false;
+  }
+  
+  if (!targetType->isOptional()) {
+    Diags.report(DiagLevel::Error, "Cannot use optional chaining on non-optional value", expr->Loc, currentFilename);
+    return false;
+  }
+  
+  for (auto& arg : expr->CallArgs) {
+    visit(arg.get());
+  }
+  
+  expr->ExprType = std::make_shared<OptionalType>(std::make_shared<BuiltinType>(BuiltinType::Any));
+  
+  return true;
+}
+
+bool Sema::visit(IfLetStmt* stmt) {
+  if (!stmt) {
+    return false;
+  }
+  
+  visit(stmt->OptionalExpr.get());
+  
+  auto optionalType = getExprType(stmt->OptionalExpr.get());
+  if (!optionalType) {
+    return false;
+  }
+  
+  if (!optionalType->isOptional()) {
+    Diags.report(DiagLevel::Error, "if let requires an optional value", stmt->OptionalExpr->Loc, currentFilename);
+    return false;
+  }
+  
+  enterScope();
+  
+  auto optionalTypeCast = std::dynamic_pointer_cast<OptionalType>(optionalType);
+  if (optionalTypeCast) {
+    addSymbol(stmt->VarName, optionalTypeCast->getWrappedType());
+  } else {
+    addSymbol(stmt->VarName, optionalType);
+  }
+  
+  visit(stmt->ThenBranch.get());
+  exitScope();
+  
+  if (stmt->ElseBranch) {
+    visit(stmt->ElseBranch.get());
+  }
+  
+  return true;
+}
+
+bool Sema::visit(GuardStmt* stmt) {
+  if (!stmt) {
+    return false;
+  }
+  
+  visit(stmt->OptionalExpr.get());
+  
+  auto optionalType = getExprType(stmt->OptionalExpr.get());
+  if (!optionalType) {
+    return false;
+  }
+  
+  if (!optionalType->isOptional()) {
+    Diags.report(DiagLevel::Error, "guard let requires an optional value", stmt->OptionalExpr->Loc, currentFilename);
+    return false;
+  }
+  
+  enterScope();
+  
+  auto optionalTypeCast = std::dynamic_pointer_cast<OptionalType>(optionalType);
+  if (optionalTypeCast) {
+    addSymbol(stmt->VarName, optionalTypeCast->getWrappedType());
+  } else {
+    addSymbol(stmt->VarName, optionalType);
+  }
+  
+  exitScope();
+  
+  visit(stmt->ElseBranch.get());
   
   return true;
 }

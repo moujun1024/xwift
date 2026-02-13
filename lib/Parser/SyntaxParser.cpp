@@ -143,7 +143,14 @@ std::unique_ptr<Stmt> SyntaxParser::parseStatement() {
   }
   
   if (CurrentToken.is(TokenKind::kw_if)) {
+    if (peek().is(TokenKind::kw_let)) {
+      return parseIfLetStatement();
+    }
     return parseIfStatement();
+  }
+  
+  if (CurrentToken.is(TokenKind::kw_guard)) {
+    return parseGuardStatement();
   }
   
   if (CurrentToken.is(TokenKind::kw_while)) {
@@ -190,6 +197,46 @@ std::unique_ptr<Stmt> SyntaxParser::parseIfStatement() {
   }
   
   return std::make_unique<IfStmt>(std::move(cond), std::move(thenBranch), std::move(elseBranch));
+}
+
+std::unique_ptr<Stmt> SyntaxParser::parseIfLetStatement() {
+  consume(TokenKind::kw_if);
+  consume(TokenKind::kw_let);
+  
+  std::string varName = CurrentToken.Text;
+  expect(TokenKind::Identifier);
+  
+  consume(TokenKind::punct_eq);
+  auto optionalExpr = parseExpression();
+  expect(TokenKind::punct_r_paren);
+  
+  auto thenBranch = parseStatement();
+  
+  std::unique_ptr<Stmt> elseBranch;
+  if (CurrentToken.is(TokenKind::kw_else)) {
+    advance();
+    elseBranch = parseStatement();
+  }
+  
+  return std::make_unique<IfLetStmt>(varName, std::move(optionalExpr), 
+                                      std::move(thenBranch), std::move(elseBranch));
+}
+
+std::unique_ptr<Stmt> SyntaxParser::parseGuardStatement() {
+  consume(TokenKind::kw_guard);
+  consume(TokenKind::kw_let);
+  
+  std::string varName = CurrentToken.Text;
+  expect(TokenKind::Identifier);
+  
+  consume(TokenKind::punct_eq);
+  auto optionalExpr = parseExpression();
+  expect(TokenKind::punct_r_paren);
+  
+  consume(TokenKind::kw_else);
+  auto elseBranch = parseBlock();
+  
+  return std::make_unique<GuardStmt>(varName, std::move(optionalExpr), std::move(elseBranch));
 }
 
 std::unique_ptr<Stmt> SyntaxParser::parseWhileStatement() {
@@ -383,7 +430,7 @@ std::unique_ptr<Expr> SyntaxParser::parsePrimaryExpression() {
   if (CurrentToken.is(TokenKind::kw_nil)) {
     auto loc = CurrentToken.Loc;
     advance();
-    return std::make_unique<IntegerLiteralExpr>(0, loc);
+    return std::make_unique<NilLiteralExpr>(loc);
   }
   
   return nullptr;
@@ -394,7 +441,7 @@ std::unique_ptr<Expr> SyntaxParser::parseBinaryExpression() {
 }
 
 std::unique_ptr<Expr> SyntaxParser::parseBinaryExpression(int minPrecedence) {
-  auto lhs = parsePrimaryExpression();
+  auto lhs = parsePostfixExpression();
   
   while (true) {
     if (!CurrentToken.isOperator()) {
@@ -414,6 +461,94 @@ std::unique_ptr<Expr> SyntaxParser::parseBinaryExpression(int minPrecedence) {
   }
   
   return lhs;
+}
+
+std::unique_ptr<Expr> SyntaxParser::parsePostfixExpression() {
+  auto expr = parsePrimaryExpression();
+  
+  while (true) {
+    if (CurrentToken.is(TokenKind::punct_question)) {
+      auto loc = CurrentToken.Loc;
+      advance();
+      expr = std::make_unique<OptionalUnwrapExpr>(std::move(expr), false, loc);
+    }
+    else if (CurrentToken.is(TokenKind::op_exclamation)) {
+      auto loc = CurrentToken.Loc;
+      advance();
+      expr = std::make_unique<OptionalUnwrapExpr>(std::move(expr), true, loc);
+    }
+    else if (CurrentToken.is(TokenKind::punct_question_dot)) {
+      auto loc = CurrentToken.Loc;
+      advance();
+      std::string memberName = CurrentToken.Text;
+      expect(TokenKind::Identifier);
+      
+      std::vector<std::unique_ptr<Expr>> callArgs;
+      if (CurrentToken.is(TokenKind::punct_l_paren)) {
+        advance();
+        while (!CurrentToken.is(TokenKind::punct_r_paren)) {
+          if (!callArgs.empty()) {
+            consume(TokenKind::punct_comma);
+          }
+          callArgs.push_back(parseExpression());
+        }
+        expect(TokenKind::punct_r_paren);
+      }
+      
+      expr = std::make_unique<OptionalChainExpr>(std::move(expr), memberName, 
+                                                  std::move(callArgs), loc);
+    }
+    else {
+      break;
+    }
+  }
+  
+  return expr;
+}
+
+std::unique_ptr<Expr> SyntaxParser::parseOptionalChain() {
+  auto expr = parsePrimaryExpression();
+  
+  while (CurrentToken.is(TokenKind::punct_question_dot)) {
+    auto loc = CurrentToken.Loc;
+    advance();
+    std::string memberName = CurrentToken.Text;
+    expect(TokenKind::Identifier);
+    
+    std::vector<std::unique_ptr<Expr>> callArgs;
+    if (CurrentToken.is(TokenKind::punct_l_paren)) {
+      advance();
+      while (!CurrentToken.is(TokenKind::punct_r_paren)) {
+        if (!callArgs.empty()) {
+          consume(TokenKind::punct_comma);
+        }
+        callArgs.push_back(parseExpression());
+      }
+      expect(TokenKind::punct_r_paren);
+    }
+    
+    expr = std::make_unique<OptionalChainExpr>(std::move(expr), memberName, 
+                                                std::move(callArgs), loc);
+  }
+  
+  return expr;
+}
+
+bool SyntaxParser::isOptionalType(const std::string& typeName) {
+  return !typeName.empty() && typeName.back() == '?';
+}
+
+std::shared_ptr<Type> SyntaxParser::parseType() {
+  std::string typeName = CurrentToken.Text;
+  expect(TokenKind::Identifier);
+  
+  if (isOptionalType(typeName)) {
+    std::string baseTypeName = typeName.substr(0, typeName.length() - 1);
+    auto baseType = std::make_shared<BuiltinType>(BuiltinType::Any);
+    return std::make_shared<OptionalType>(baseType);
+  }
+  
+  return std::make_shared<BuiltinType>(BuiltinType::Any);
 }
 
 int SyntaxParser::getPrecedence(const std::string& op) {

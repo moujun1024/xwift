@@ -324,6 +324,10 @@ Token Lexer::lexPunctuation() {
         consumeChar();
         return Token(TokenKind::punct_dot_dot, getCurLocation(), 2, "..");
       }
+      if (peekChar() == '?') {
+        consumeChar();
+        return Token(TokenKind::punct_question_dot, getCurLocation(), 2, "?.");
+      }
       kind = TokenKind::punct_dot; 
       break;
     case '?': kind = TokenKind::punct_question; break;

@@ -42,6 +42,11 @@ public:
   bool visit(StringLiteralExpr* lit);
   bool visit(ArrayLiteralExpr* lit);
   bool visit(ArrayIndexExpr* expr);
+  bool visit(NilLiteralExpr* lit);
+  bool visit(OptionalUnwrapExpr* expr);
+  bool visit(OptionalChainExpr* expr);
+  bool visit(IfLetStmt* stmt);
+  bool visit(GuardStmt* stmt);
   
   std::shared_ptr<Type> getExprType(Expr* expr);
   bool isTypeCompatible(std::shared_ptr<Type> from, std::shared_ptr<Type> to);

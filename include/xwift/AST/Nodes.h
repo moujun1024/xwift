@@ -63,6 +63,12 @@ public:
   BoolLiteralExpr(bool val, SourceLocation loc = SourceLocation()) : Value(val), Loc(loc) {}
 };
 
+class NilLiteralExpr : public Expr {
+public:
+  SourceLocation Loc;
+  NilLiteralExpr(SourceLocation loc = SourceLocation()) : Loc(loc) {}
+};
+
 class StringLiteralExpr : public Expr {
 public:
   std::string Value;
@@ -106,6 +112,26 @@ public:
   ArrayIndexExpr(ExprPtr array, ExprPtr index) : Array(std::move(array)), Index(std::move(index)) {}
 };
 
+class OptionalUnwrapExpr : public Expr {
+public:
+  ExprPtr Target;
+  bool IsForceUnwrap;
+  SourceLocation Loc;
+  OptionalUnwrapExpr(ExprPtr target, bool force = false, SourceLocation loc = SourceLocation())
+    : Target(std::move(target)), IsForceUnwrap(force), Loc(loc) {}
+};
+
+class OptionalChainExpr : public Expr {
+public:
+  ExprPtr Target;
+  std::string MemberName;
+  std::vector<ExprPtr> CallArgs;
+  SourceLocation Loc;
+  OptionalChainExpr(ExprPtr target, const std::string& member, 
+                    std::vector<ExprPtr> args = {}, SourceLocation loc = SourceLocation())
+    : Target(std::move(target)), MemberName(member), CallArgs(std::move(args)), Loc(loc) {}
+};
+
 class CallExpr : public Expr {
 public:
   std::string Callee;
@@ -137,6 +163,28 @@ public:
   StmtPtr ElseBranch;
   IfStmt(ExprPtr cond, StmtPtr thenBranch, StmtPtr elseBranch = nullptr)
     : Condition(std::move(cond)), ThenBranch(std::move(thenBranch)), ElseBranch(std::move(elseBranch)) {}
+};
+
+class IfLetStmt : public Stmt {
+public:
+  std::string VarName;
+  ExprPtr OptionalExpr;
+  StmtPtr ThenBranch;
+  StmtPtr ElseBranch;
+  IfLetStmt(const std::string& varName, ExprPtr optionalExpr, 
+            StmtPtr thenBranch, StmtPtr elseBranch = nullptr)
+    : VarName(varName), OptionalExpr(std::move(optionalExpr)), 
+      ThenBranch(std::move(thenBranch)), ElseBranch(std::move(elseBranch)) {}
+};
+
+class GuardStmt : public Stmt {
+public:
+  std::string VarName;
+  ExprPtr OptionalExpr;
+  StmtPtr ElseBranch;
+  GuardStmt(const std::string& varName, ExprPtr optionalExpr, StmtPtr elseBranch)
+    : VarName(varName), OptionalExpr(std::move(optionalExpr)), 
+      ElseBranch(std::move(elseBranch)) {}
 };
 
 class WhileStmt : public Stmt {

@@ -22,15 +22,19 @@ namespace xwift {
 
 class Value {
 private:
-  std::variant<int64_t, double, std::string, bool, std::vector<Value>> data;
+  std::variant<std::monostate, int64_t, double, std::string, bool, std::vector<Value>> data;
   
 public:
-  Value() : data(int64_t(0)) {}
+  Value() : data(std::monostate()) {}
   Value(int64_t val) : data(val) {}
   Value(double val) : data(val) {}
   Value(const std::string& val) : data(val) {}
   Value(bool val) : data(val) {}
   Value(const std::vector<Value>& val) : data(val) {}
+  
+  bool isNil() const {
+    return std::holds_alternative<std::monostate>(data);
+  }
   
   template<typename T>
   T* get() {
@@ -713,6 +717,37 @@ private:
       return;
     }
     
+    if (auto ifLetStmt = dynamic_cast<IfLetStmt*>(stmt)) {
+      Value optionalVal = evaluate(ifLetStmt->OptionalExpr.get());
+      
+      if (!optionalVal.isNil()) {
+        enterScope();
+        setVariable(ifLetStmt->VarName, optionalVal);
+        if (ifLetStmt->ThenBranch) {
+          runStmt(ifLetStmt->ThenBranch.get(), retVal);
+        }
+        exitScope();
+      } else if (ifLetStmt->ElseBranch) {
+        runStmt(ifLetStmt->ElseBranch.get(), retVal);
+      }
+      return;
+    }
+    
+    if (auto guardStmt = dynamic_cast<GuardStmt*>(stmt)) {
+      Value optionalVal = evaluate(guardStmt->OptionalExpr.get());
+      
+      if (optionalVal.isNil()) {
+        if (guardStmt->ElseBranch) {
+          runStmt(guardStmt->ElseBranch.get(), retVal);
+        }
+      } else {
+        enterScope();
+        setVariable(guardStmt->VarName, optionalVal);
+        exitScope();
+      }
+      return;
+    }
+    
     if (auto whileStmt = dynamic_cast<WhileStmt*>(stmt)) {
       while (true) {
         CurrentStep++;
@@ -819,7 +854,11 @@ private:
   }
   
   Value evaluate(Expr* expr) {
-    if (!expr) return Value(int64_t(0));
+    if (!expr) return Value();
+    
+    if (auto lit = dynamic_cast<NilLiteralExpr*>(expr)) {
+      return Value();
+    }
     
     if (auto lit = dynamic_cast<IntegerLiteralExpr*>(expr)) {
       return Value(lit->Value);
@@ -857,6 +896,29 @@ private:
       }
       
       throw diag::undefinedVariable(id->Name);
+    }
+    
+    if (auto optUnwrap = dynamic_cast<OptionalUnwrapExpr*>(expr)) {
+      Value targetVal = evaluate(optUnwrap->Target.get());
+      
+      if (targetVal.isNil()) {
+        if (optUnwrap->IsForceUnwrap) {
+          throw std::runtime_error("Fatal error: Force unwrapped a nil value");
+        }
+        return Value();
+      }
+      
+      return targetVal;
+    }
+    
+    if (auto optChain = dynamic_cast<OptionalChainExpr*>(expr)) {
+      Value targetVal = evaluate(optChain->Target.get());
+      
+      if (targetVal.isNil()) {
+        return Value();
+      }
+      
+      return targetVal;
     }
     
     if (auto arrIdx = dynamic_cast<ArrayIndexExpr*>(expr)) {

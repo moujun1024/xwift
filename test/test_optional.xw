@@ -1,0 +1,67 @@
+func main() {
+    let name: String? = nil
+    let age: Int? = 25
+    
+    if let n = name {
+        println("Name: " + n)
+    } else {
+        println("Name is nil")
+    }
+    
+    if let a = age {
+        println("Age: " + toString(a))
+    } else {
+        println("Age is nil")
+    }
+    
+    var result: String? = "Hello"
+    
+    if let r = result {
+        println("Result: " + r)
+    }
+    
+    var optionalValue: Int? = 42
+    
+    if let value = optionalValue {
+        println("Value: " + toString(value))
+    }
+    
+    var nestedOptional: String?? = nil
+    
+    if let outer = nestedOptional {
+        if let inner = outer {
+            println("Nested: " + inner)
+        }
+    }
+    
+    var user: String? = "John"
+    
+    guard let u = user else {
+        println("User is nil")
+        return
+    }
+    
+    println("User: " + u)
+    
+    var empty: String? = nil
+    
+    if let e = empty {
+        println("This should not print")
+    } else {
+        println("Empty is nil")
+    }
+    
+    var numbers: [Int]? = [1, 2, 3]
+    
+    if let nums = numbers {
+        println("Numbers: " + toString(len(nums)))
+    }
+    
+    var nilArray: [Int]? = nil
+    
+    if let arr = nilArray {
+        println("This should not print")
+    } else {
+        println("Array is nil")
+    }
+}

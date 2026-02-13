@@ -60,15 +60,21 @@ private:
   std::unique_ptr<VarDeclStmt> parseVariableDeclaration();
   std::unique_ptr<Stmt> parseStatement();
   std::unique_ptr<Stmt> parseIfStatement();
+  std::unique_ptr<Stmt> parseIfLetStatement();
+  std::unique_ptr<Stmt> parseGuardStatement();
   std::unique_ptr<Stmt> parseWhileStatement();
   std::unique_ptr<Stmt> parseForStatement();
   std::unique_ptr<Stmt> parseSwitchStatement();
   std::unique_ptr<BlockStmt> parseBlock();
   std::unique_ptr<Expr> parseExpression();
   std::unique_ptr<Expr> parsePrimaryExpression();
+  std::unique_ptr<Expr> parsePostfixExpression();
+  std::unique_ptr<Expr> parseOptionalChain();
   std::unique_ptr<Expr> parseBinaryExpression();
   std::unique_ptr<Expr> parseBinaryExpression(int minPrecedence);
   int getPrecedence(const std::string& op);
+  bool isOptionalType(const std::string& typeName);
+  std::shared_ptr<Type> parseType();
 };
 
 }
