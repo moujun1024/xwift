@@ -12,6 +12,8 @@ set(XWIFT_VERSION "${XWIFT_VERSION_MAJOR}.${XWIFT_VERSION_MINOR}.${XWIFT_VERSION
 
 option(BUILD_TESTING "Build and run tests" ON)
 option(BUILD_PLUGINS "Build plugin libraries" ON)
+option(XWIFT_ENABLE_PYTHON "Enable Python FFI support" OFF)
+option(XWIFT_ENABLE_OBJC "Enable Objective-C FFI support" OFF)
 
 message(STATUS "XWift Version: ${XWIFT_VERSION}")
 
@@ -30,6 +32,7 @@ add_subdirectory(lib/Frontend)
 add_subdirectory(lib/Filesystem)
 add_subdirectory(lib/Logging)
 add_subdirectory(lib/stdlib)
+add_subdirectory(lib/FFI)
 
 if(BUILD_PLUGINS)
   add_subdirectory(lib/Plugin)

@@ -1,0 +1,85 @@
+import Python
+import ObjectiveC
+import Terminal
+
+func processDataWithPython(data: Array<Int>) -> Array<Int> {
+    let python = PythonInterpreter()
+    python.initialize()
+    
+    python.execute("""
+import numpy as np
+
+def process_data(data):
+    arr = np.array(data)
+    mean = np.mean(arr)
+    std = np.std(arr)
+    normalized = (arr - mean) / std
+    return normalized.tolist()
+
+def analyze_data(data):
+    arr = np.array(data)
+    return {
+        'mean': float(np.mean(arr)),
+        'std': float(np.std(arr)),
+        'min': float(np.min(arr)),
+        'max': float(np.max(arr)),
+        'sum': float(np.sum(arr))
+    }
+""")
+    
+    let result = python.callFunction("process_data", args: [data])
+    let analysis = python.callFunction("analyze_data", args: [data])
+    
+    python.shutdown()
+    
+    return result
+}
+
+func displayWithObjectiveC(title: String, data: Array<Int>) {
+    let nsStringClass = ObjCClass(name: "NSString")
+    let nsArrayClass = ObjCClass(name: "NSArray")
+    
+    let titleStr = nsStringClass.callClassMethod("stringWithString:", args: [title])
+    let dataArray = nsArrayClass.callClassMethod("arrayWithArray:", args: [data])
+    
+    print("=== \(title) ===")
+    print("Data: \(dataArray)")
+}
+
+func main() {
+    clearScreen()
+    moveCursor(row: 1, col: 1)
+    
+    let rawData = [12, 45, 67, 23, 89, 34, 56, 78, 90, 11, 33, 55, 77, 99, 22]
+    
+    print("XWift 多语言混合编程示例")
+    print("========================")
+    print("")
+    
+    print("原始数据 (XWift):")
+    print("\(rawData)")
+    print("")
+    
+    let processedData = processDataWithPython(data: rawData)
+    
+    print("处理后数据 (Python NumPy):")
+    print("\(processedData)")
+    print("")
+    
+    displayWithObjectiveC(title: "最终展示 (Objective-C)", data: processedData)
+    print("")
+    
+    let nsStringClass = ObjCClass(name: "NSString")
+    let message = nsStringClass.callClassMethod("stringWithFormat:", 
+                                                  args: ["处理完成！共 %d 个数据点", rawData.count])
+    print("\(message)")
+    
+    print("")
+    print("语言分工:")
+    print("  - XWift: 主逻辑、流程控制")
+    print("  - Python: 数据处理、科学计算 (NumPy)")
+    print("  - Objective-C: UI 展示、字符串处理")
+    print("  - Terminal: 终端控制、颜色输出")
+}
+
+main()

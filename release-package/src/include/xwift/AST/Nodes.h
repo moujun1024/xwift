@@ -1,0 +1,381 @@
+#ifndef XWIFT_AST_NODES_H
+#define XWIFT_AST_NODES_H
+
+#include "xwift/Basic/LLVM.h"
+#include "xwift/Lexer/Token.h"
+#include "xwift/AST/Type.h"
+#include <memory>
+#include <vector>
+#include <map>
+
+namespace xwift {
+
+class ASTNode {
+public:
+  virtual ~ASTNode() = default;
+};
+
+using ASTNodePtr = std::unique_ptr<ASTNode>;
+
+class Stmt : public ASTNode {
+public:
+  virtual ~Stmt() = default;
+};
+using StmtPtr = std::unique_ptr<Stmt>;
+
+class Expr : public Stmt {
+public:
+  std::shared_ptr<Type> ExprType;
+  virtual ~Expr() = default;
+};
+using ExprPtr = std::unique_ptr<Expr>;
+
+class Decl : public Stmt {
+public:
+  virtual ~Decl() = default;
+  virtual void accept(class DeclVisitor& visitor) = 0;
+};
+using DeclPtr = std::unique_ptr<Decl>;
+
+class DeclVisitor {
+public:
+  virtual ~DeclVisitor() = default;
+  virtual bool visit(FuncDecl* func) = 0;
+  virtual bool visit(VarDeclStmt* var) = 0;
+  virtual bool visit(ClassDecl* cls) = 0;
+  virtual bool visit(StructDecl* st) = 0;
+  virtual bool visit(PropertyDecl* prop) = 0;
+  virtual bool visit(MethodDecl* method) = 0;
+  virtual bool visit(ConstructorDecl* ctor) = 0;
+  virtual bool visit(ImportDecl* import) = 0;
+};
+
+class ImportDecl : public Decl {
+public:
+  std::string ModuleName;
+  ImportDecl(const std::string& name) : ModuleName(name) {}
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
+  }
+};
+
+class IntegerLiteralExpr : public Expr {
+public:
+  int64_t Value;
+  SourceLocation Loc;
+  IntegerLiteralExpr(int64_t val, SourceLocation loc = SourceLocation()) : Value(val), Loc(loc) {}
+};
+
+class FloatLiteralExpr : public Expr {
+public:
+  double Value;
+  SourceLocation Loc;
+  FloatLiteralExpr(double val, SourceLocation loc = SourceLocation()) : Value(val), Loc(loc) {}
+};
+
+class BoolLiteralExpr : public Expr {
+public:
+  bool Value;
+  SourceLocation Loc;
+  BoolLiteralExpr(bool val, SourceLocation loc = SourceLocation()) : Value(val), Loc(loc) {}
+};
+
+class NilLiteralExpr : public Expr {
+public:
+  SourceLocation Loc;
+  NilLiteralExpr(SourceLocation loc = SourceLocation()) : Loc(loc) {}
+};
+
+class StringLiteralExpr : public Expr {
+public:
+  std::string Value;
+  SourceLocation Loc;
+  StringLiteralExpr(const std::string& val, SourceLocation loc = SourceLocation()) : Value(val), Loc(loc) {}
+};
+
+class ArrayLiteralExpr : public Expr {
+public:
+  std::vector<ExprPtr> Elements;
+  SourceLocation Loc;
+  ArrayLiteralExpr(std::vector<ExprPtr> elements, SourceLocation loc = SourceLocation()) 
+    : Elements(std::move(elements)), Loc(loc) {}
+};
+
+class IdentifierExpr : public Expr {
+public:
+  std::string Name;
+  SourceLocation Loc;
+  IdentifierExpr(const std::string& name, SourceLocation loc = SourceLocation()) : Name(name), Loc(loc) {}
+};
+
+class AssignExpr : public Expr {
+public:
+  ExprPtr Target;
+  ExprPtr Value;
+  AssignExpr(ExprPtr target, ExprPtr value) : Target(std::move(target)), Value(std::move(value)) {}
+};
+
+class BinaryExpr : public Expr {
+public:
+  std::string Op;
+  ExprPtr LHS, RHS;
+  SourceLocation Loc;
+  BinaryExpr(const std::string& op, ExprPtr lhs, ExprPtr rhs, SourceLocation loc = SourceLocation())
+    : Op(op), LHS(std::move(lhs)), RHS(std::move(rhs)), Loc(loc) {}
+};
+
+class ArrayIndexExpr : public Expr {
+public:
+  ExprPtr Array;
+  ExprPtr Index;
+  ArrayIndexExpr(ExprPtr array, ExprPtr index) : Array(std::move(array)), Index(std::move(index)) {}
+};
+
+class OptionalUnwrapExpr : public Expr {
+public:
+  ExprPtr Target;
+  bool IsForceUnwrap;
+  SourceLocation Loc;
+  OptionalUnwrapExpr(ExprPtr target, bool force = false, SourceLocation loc = SourceLocation())
+    : Target(std::move(target)), IsForceUnwrap(force), Loc(loc) {}
+};
+
+class OptionalChainExpr : public Expr {
+public:
+  ExprPtr Target;
+  std::string MemberName;
+  std::vector<ExprPtr> CallArgs;
+  SourceLocation Loc;
+  OptionalChainExpr(ExprPtr target, const std::string& member, 
+                    std::vector<ExprPtr> args = {}, SourceLocation loc = SourceLocation())
+    : Target(std::move(target)), MemberName(member), CallArgs(std::move(args)), Loc(loc) {}
+};
+
+class CallExpr : public Expr {
+public:
+  std::string Callee;
+  std::vector<ExprPtr> Args;
+  CallExpr(const std::string& callee, std::vector<ExprPtr> args)
+    : Callee(callee), Args(std::move(args)) {}
+};
+
+class VarDeclStmt : public Decl {
+public:
+  std::string Name;
+  std::string Type;
+  ExprPtr Init;
+  bool IsMutable;
+  VarDeclStmt(const std::string& name, const std::string& type, ExprPtr init, bool mut)
+    : Name(name), Type(type), Init(std::move(init)), IsMutable(mut) {}
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
+  }
+};
+
+class ReturnStmt : public Stmt {
+public:
+  ExprPtr Value;
+  ReturnStmt(ExprPtr val) : Value(std::move(val)) {}
+};
+
+class IfStmt : public Stmt {
+public:
+  ExprPtr Condition;
+  StmtPtr ThenBranch;
+  StmtPtr ElseBranch;
+  IfStmt(ExprPtr cond, StmtPtr thenBranch, StmtPtr elseBranch = nullptr)
+    : Condition(std::move(cond)), ThenBranch(std::move(thenBranch)), ElseBranch(std::move(elseBranch)) {}
+};
+
+class IfLetStmt : public Stmt {
+public:
+  std::string VarName;
+  ExprPtr OptionalExpr;
+  StmtPtr ThenBranch;
+  StmtPtr ElseBranch;
+  IfLetStmt(const std::string& varName, ExprPtr optionalExpr, 
+            StmtPtr thenBranch, StmtPtr elseBranch = nullptr)
+    : VarName(varName), OptionalExpr(std::move(optionalExpr)), 
+      ThenBranch(std::move(thenBranch)), ElseBranch(std::move(elseBranch)) {}
+};
+
+class GuardStmt : public Stmt {
+public:
+  std::string VarName;
+  ExprPtr OptionalExpr;
+  StmtPtr ElseBranch;
+  GuardStmt(const std::string& varName, ExprPtr optionalExpr, StmtPtr elseBranch)
+    : VarName(varName), OptionalExpr(std::move(optionalExpr)), 
+      ElseBranch(std::move(elseBranch)) {}
+};
+
+class WhileStmt : public Stmt {
+public:
+  ExprPtr Condition;
+  StmtPtr Body;
+  WhileStmt(ExprPtr cond, StmtPtr body)
+    : Condition(std::move(cond)), Body(std::move(body)) {}
+};
+
+class ForStmt : public Stmt {
+public:
+  std::string VarName;
+  ExprPtr Start;
+  ExprPtr End;
+  ExprPtr Step;
+  StmtPtr Body;
+  ForStmt(const std::string& var, ExprPtr start, ExprPtr end, ExprPtr step, StmtPtr body)
+    : VarName(var), Start(std::move(start)), End(std::move(end)), 
+      Step(std::move(step)), Body(std::move(body)) {}
+};
+
+class SwitchStmt : public Stmt {
+public:
+  ExprPtr Condition;
+  std::vector<std::pair<std::vector<ExprPtr>, StmtPtr>> Cases;
+  SwitchStmt(ExprPtr cond) : Condition(std::move(cond)) {}
+  void addCase(std::vector<ExprPtr> patterns, StmtPtr body) {
+    Cases.push_back({std::move(patterns), std::move(body)});
+  }
+};
+
+class BlockStmt : public Stmt {
+public:
+  std::vector<StmtPtr> Statements;
+  void addStmt(StmtPtr stmt) { Statements.push_back(std::move(stmt)); }
+};
+
+class FuncDecl : public Decl {
+public:
+  std::string Name;
+  std::string ReturnType;
+  std::vector<std::pair<std::string, std::string>> Params;
+  StmtPtr Body;
+  FuncDecl(const std::string& name, const std::string& retType, StmtPtr body)
+    : Name(name), ReturnType(retType), Body(std::move(body)) {}
+  void addParam(const std::string& name, const std::string& type) {
+    Params.push_back({name, type});
+  }
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
+  }
+};
+
+class ClassDecl : public Decl {
+public:
+  std::string Name;
+  std::string SuperClass;
+  std::vector<DeclPtr> Members;
+  ClassDecl(const std::string& name, const std::string& superClass = "") 
+    : Name(name), SuperClass(superClass) {}
+  void addMember(DeclPtr member) { Members.push_back(std::move(member)); }
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
+  }
+};
+
+class StructDecl : public Decl {
+public:
+  std::string Name;
+  std::vector<DeclPtr> Members;
+  StructDecl(const std::string& name) : Name(name) {}
+  void addMember(DeclPtr member) { Members.push_back(std::move(member)); }
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
+  }
+};
+
+class PropertyDecl : public Decl {
+public:
+  std::string Name;
+  std::string Type;
+  ExprPtr Initializer;
+  std::string WillSet;
+  std::string DidSet;
+  PropertyDecl(const std::string& name, const std::string& type, ExprPtr init = nullptr)
+    : Name(name), Type(type), Initializer(std::move(init)) {}
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
+  }
+};
+
+class MethodDecl : public Decl {
+public:
+  std::string Name;
+  std::string ReturnType;
+  std::vector<std::pair<std::string, std::string>> Params;
+  StmtPtr Body;
+  bool IsVirtual;
+  bool IsOverride;
+  MethodDecl(const std::string& name, const std::string& retType, StmtPtr body)
+    : Name(name), ReturnType(retType), Body(std::move(body)), 
+      IsVirtual(false), IsOverride(false) {}
+  void addParam(const std::string& name, const std::string& type) {
+    Params.push_back({name, type});
+  }
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
+  }
+};
+
+class ConstructorDecl : public Decl {
+public:
+  std::vector<std::pair<std::string, std::string>> Params;
+  StmtPtr Body;
+  ConstructorDecl(StmtPtr body) : Body(std::move(body)) {}
+  void addParam(const std::string& name, const std::string& type) {
+    Params.push_back({name, type});
+  }
+  
+  void accept(DeclVisitor& visitor) override {
+    visitor.visit(this);
+  }
+};
+
+class MemberAccessExpr : public Expr {
+public:
+  ExprPtr Object;
+  std::string MemberName;
+  SourceLocation Loc;
+  MemberAccessExpr(ExprPtr obj, const std::string& member, SourceLocation loc = SourceLocation())
+    : Object(std::move(obj)), MemberName(member), Loc(loc) {}
+};
+
+class ConstructorCallExpr : public Expr {
+public:
+  std::string ClassName;
+  std::vector<ExprPtr> Args;
+  SourceLocation Loc;
+  ConstructorCallExpr(const std::string& className, std::vector<ExprPtr> args, SourceLocation loc = SourceLocation())
+    : ClassName(className), Args(std::move(args)), Loc(loc) {}
+};
+
+class SuperExpr : public Expr {
+public:
+  SourceLocation Loc;
+  SuperExpr(SourceLocation loc = SourceLocation()) : Loc(loc) {}
+};
+
+class ThisExpr : public Expr {
+public:
+  SourceLocation Loc;
+  ThisExpr(SourceLocation loc = SourceLocation()) : Loc(loc) {}
+};
+
+class Program : public ASTNode {
+public:
+  std::vector<DeclPtr> Declarations;
+  void addDecl(DeclPtr decl) { Declarations.push_back(std::move(decl)); }
+  std::vector<DeclPtr>& getDecls() { return Declarations; }
+};
+
+}
+
+#endif

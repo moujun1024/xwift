@@ -1,0 +1,49 @@
+import Python
+
+func fibonacci(n: Int) -> Int {
+    if n <= 1 {
+        return n
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+func main() {
+    let python = PythonInterpreter()
+    python.initialize()
+    
+    python.execute("""
+def fibonacci_py(n):
+    if n <= 1:
+        return n
+    return fibonacci_py(n - 1) + fibonacci_py(n - 2)
+
+def quicksort(arr):
+    if len(arr) <= 1:
+        return arr
+    pivot = arr[len(arr) // 2]
+    left = [x for x in arr if x < pivot]
+    middle = [x for x in arr if x == pivot]
+    right = [x for x in arr if x > pivot]
+    return quicksort(left) + middle + quicksort(right)
+""")
+    
+    let n = 30
+    
+    let xwiftResult = fibonacci(n: n)
+    let pythonResult = python.callFunction("fibonacci_py", args: [n])
+    
+    print("XWift Fibonacci(\(n)) = \(xwiftResult)")
+    print("Python Fibonacci(\(n)) = \(pythonResult)")
+    
+    let arr = [64, 34, 25, 12, 22, 11, 90]
+    python.setVariable("test_arr", value: arr)
+    python.execute("sorted_arr = quicksort(test_arr)")
+    let sortedArr = python.getVariable("sorted_arr")
+    
+    print("Original array: \(arr)")
+    print("Sorted array: \(sortedArr)")
+    
+    python.shutdown()
+}
+
+main()

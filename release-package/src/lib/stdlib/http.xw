@@ -1,0 +1,67 @@
+func httpRequest(method, url, data) -> String {
+  if method == "GET" {
+    return httpGet(url)
+  } else if method == "POST" {
+    return httpPost(url, data)
+  } else if method == "PUT" {
+    return httpPut(url, data)
+  } else if method == "DELETE" {
+    return httpDelete(url)
+  }
+  return ""
+}
+
+func httpGetJson(url) -> String {
+  return httpGet(url)
+}
+
+func httpPostJson(url, jsonData) -> String {
+  return httpPost(url, jsonData)
+}
+
+func httpPutJson(url, jsonData) -> String {
+  return httpPut(url, jsonData)
+}
+
+func httpDeleteJson(url) -> String {
+  return httpDelete(url)
+}
+
+func httpGetStatus(url) -> Int {
+  return httpStatusCode(url)
+}
+
+func buildUrl(baseUrl, path, params) -> String {
+  var url = baseUrl + path
+  if len(params) > 0 {
+    var parts = []
+    var i = 0
+    while i < len(params) {
+      parts = append(parts, urlEncode(params[i]))
+      i = i + 1
+    }
+    var query = join(parts, "&")
+    url = url + "?" + query
+  }
+  return url
+}
+
+func parseHeaders(headersStr) -> Array {
+  var result = []
+  var lines = split("\n", headersStr)
+  var i = 0
+  while i < len(lines) {
+    var line = lines[i]
+    if len(line) > 0 {
+      var parts = split(":", line)
+      if len(parts) == 2 {
+        var header = []
+        header = append(header, trim(parts[0]))
+        header = append(header, trim(parts[1]))
+        result = append(result, header)
+      }
+    }
+    i = i + 1
+  }
+  return result
+}

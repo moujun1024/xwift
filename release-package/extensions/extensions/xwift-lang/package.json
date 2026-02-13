@@ -1,0 +1,57 @@
+{
+  "name": "xwift-lang",
+  "displayName": "XWift Language",
+  "description": "XWift language support for VSCode - Swift-like syntax for cross-platform development",
+  "version": "1.0.0",
+  "publisher": "xwift",
+  "icon": "images/Logo.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xwift/xwift-lang"
+  },
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "xwift",
+        "aliases": [
+          "XWift",
+          "xwift"
+        ],
+        "extensions": [
+          ".xw"
+        ],
+        "icon": {
+          "light": "images/Logo.svg",
+          "dark": "images/Logo.svg"
+        },
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "xwift",
+        "scopeName": "source.xwift",
+        "path": "./syntaxes/xwift.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "xwift",
+        "path": "./snippets/xwift.code-snippets"
+      }
+    ]
+  },
+  "activationEvents": [
+    "onLanguage:xwift"
+  ],
+  "main": "./extension.js",
+  "devDependencies": {
+    "@vscode/vsce": "^3.7.1"
+  }
+}

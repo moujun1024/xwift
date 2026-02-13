@@ -1,0 +1,44 @@
+import ObjectiveC
+
+func main() {
+    let nsStringClass = ObjCClass(name: "NSString")
+    
+    if !nsStringClass.isValid() {
+        print("NSString class not found")
+        return
+    }
+    
+    let helloStr = nsStringClass.callClassMethod("stringWithString:", args: ["Hello, Objective-C from XWift!"])
+    
+    print("NSString: \(helloStr)")
+    
+    let arrayClass = ObjCClass(name: "NSArray")
+    if arrayClass.isValid() {
+        let numbers = [1, 2, 3, 4, 5]
+        let nsArray = arrayClass.callClassMethod("arrayWithArray:", args: [numbers])
+        
+        print("NSArray: \(nsArray)")
+    }
+    
+    let dictClass = ObjCClass(name: "NSDictionary")
+    if dictClass.isValid() {
+        let dict = dictClass.callClassMethod("dictionaryWithObjectsAndKeys:", 
+                                              args: ["value1", "key1", "value2", "key2"])
+        
+        print("NSDictionary: \(dict)")
+    }
+    
+    let dateFormatterClass = ObjCClass(name: "NSDateFormatter")
+    if dateFormatterClass.isValid() {
+        let formatter = dateFormatterClass.createInstance([])
+        formatter.callMethod("setDateFormat:", args: ["yyyy-MM-dd HH:mm:ss"])
+        
+        let dateClass = ObjCClass(name: "NSDate")
+        let date = dateClass.callClassMethod("date", args: [])
+        
+        let dateString = formatter.callMethod("stringFromDate:", args: [date])
+        print("Current date: \(dateString)")
+    }
+}
+
+main()
