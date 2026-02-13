@@ -1,0 +1,458 @@
+# XWift UI 示例应用程序
+
+import Foundation
+import UI
+
+// MARK: - 示例 1: Hello World
+
+func helloWorld() {
+    let window = Window()
+    window.setTitle("Hello World")
+    window.setSize(width: 400, height: 300)
+    
+    let content = VStack(spacing: 20) {
+        Text("Hello, XWift!")
+            .fontSize(.ExtraLarge)
+            .foregroundColor(.Blue)
+            .alignment(.Center)
+        
+        Text("Welcome to XWift UI")
+            .fontSize(.Medium)
+            .alignment(.Center)
+    }
+    .padding(30)
+    
+    window.setContent(content)
+    
+    let app = Application.shared
+    app.setMainWindow(window)
+    app.run()
+}
+
+// MARK: - 示例 2: 登录界面
+
+func loginScreen() {
+    let window = Window()
+    window.setTitle("Login")
+    window.setSize(width: 400, height: 350)
+    
+    let content = VStack(spacing: 15) {
+        Text("Welcome Back")
+            .fontSize(.ExtraLarge)
+            .foregroundColor(.Blue)
+            .alignment(.Center)
+        
+        TextField("Username")
+            .placeholder("Enter your username")
+            .padding(5)
+        
+        TextField("Password")
+            .placeholder("Enter your password")
+            .padding(5)
+        
+        HStack(spacing: 10) {
+            Button("Login") {
+                print("Login button clicked!")
+            }
+            .backgroundColor(.Blue)
+            .foregroundColor(.White)
+            
+            Button("Sign Up") {
+                print("Sign up button clicked!")
+            }
+            .backgroundColor(.Green)
+            .foregroundColor(.White)
+        }
+    }
+    .padding(30)
+    
+    window.setContent(content)
+    
+    let app = Application.shared
+    app.setMainWindow(window)
+    app.run()
+}
+
+// MARK: - 示例 3: 计数器应用
+
+func counterApp() {
+    var count = 0
+    
+    let countLabel = Text("Count: 0")
+        .fontSize(.Large)
+        .alignment(.Center)
+    
+    let content = VStack(spacing: 20) {
+        Text("Counter App")
+            .fontSize(.ExtraLarge)
+            .foregroundColor(.Blue)
+            .alignment(.Center)
+        
+        countLabel
+        
+        HStack(spacing: 10) {
+            Button("-") {
+                count = count - 1
+                countLabel.text = "Count: " + String(count)
+            }
+            .backgroundColor(.Red)
+            .foregroundColor(.White)
+            
+            Button("Reset") {
+                count = 0
+                countLabel.text = "Count: 0"
+            }
+            .backgroundColor(.Gray)
+            .foregroundColor(.White)
+            
+            Button("+") {
+                count = count + 1
+                countLabel.text = "Count: " + String(count)
+            }
+            .backgroundColor(.Green)
+            .foregroundColor(.White)
+        }
+    }
+    .padding(30)
+    
+    let window = Window()
+    window.setTitle("Counter")
+    window.setSize(width: 300, height: 250)
+    window.setContent(content)
+    
+    let app = Application.shared
+    app.setMainWindow(window)
+    app.run()
+}
+
+// MARK: - 示例 4: 待办事项列表
+
+func todoApp() {
+    var todos: [String] = []
+    
+    let todoList = VStack(spacing: 5) {
+        Text("Todo List")
+            .fontSize(.Large)
+            .foregroundColor(.Blue)
+    }
+    
+    let textField = TextField("New todo")
+    
+    let content = VStack(spacing: 15) {
+        Text("My Todos")
+            .fontSize(.ExtraLarge)
+            .foregroundColor(.Blue)
+            .alignment(.Center)
+        
+        textField
+            .padding(5)
+        
+        HStack(spacing: 10) {
+            Button("Add Todo") {
+                let text = textField.text
+                if !text.isEmpty {
+                    todos.append(text)
+                    textField.text = ""
+                    print("Added: " + text)
+                }
+            }
+            .backgroundColor(.Blue)
+            .foregroundColor(.White)
+            
+            Button("Clear All") {
+                todos.removeAll()
+                print("Cleared all todos")
+            }
+            .backgroundColor(.Red)
+            .foregroundColor(.White)
+        }
+        
+        todoList
+    }
+    .padding(20)
+    
+    let window = Window()
+    window.setTitle("Todo List")
+    window.setSize(width: 400, height: 500)
+    window.setContent(content)
+    
+    let app = Application.shared
+    app.setMainWindow(window)
+    app.run()
+}
+
+// MARK: - 示例 5: 计算器
+
+func calculatorApp() {
+    var currentValue = "0"
+    var previousValue = ""
+    var operation: String? = nil
+    
+    let display = Text("0")
+        .fontSize(.ExtraLarge)
+        .alignment(.Trailing)
+        .padding(10)
+    
+    let content = VStack(spacing: 10) {
+        Text("Calculator")
+            .fontSize(.Large)
+            .foregroundColor(.Blue)
+            .alignment(.Center)
+        
+        display
+            .backgroundColor(.LightGray)
+            .padding(20)
+        
+        HStack(spacing: 5) {
+            Button("7") { currentValue = currentValue + "7"; display.text = currentValue }
+            Button("8") { currentValue = currentValue + "8"; display.text = currentValue }
+            Button("9") { currentValue = currentValue + "9"; display.text = currentValue }
+            Button("/") { operation = "/" }
+        }
+        
+        HStack(spacing: 5) {
+            Button("4") { currentValue = currentValue + "4"; display.text = currentValue }
+            Button("5") { currentValue = currentValue + "5"; display.text = currentValue }
+            Button("6") { currentValue = currentValue + "6"; display.text = currentValue }
+            Button("*") { operation = "*" }
+        }
+        
+        HStack(spacing: 5) {
+            Button("1") { currentValue = currentValue + "1"; display.text = currentValue }
+            Button("2") { currentValue = currentValue + "2"; display.text = currentValue }
+            Button("3") { currentValue = currentValue + "3"; display.text = currentValue }
+            Button("-") { operation = "-" }
+        }
+        
+        HStack(spacing: 5) {
+            Button("0") { currentValue = currentValue + "0"; display.text = currentValue }
+            Button("C") { currentValue = "0"; display.text = "0"; operation = nil }
+            Button("=") { 
+                if let op = operation {
+                    print("Calculate: " + previousValue + " " + op + " " + currentValue)
+                }
+            }
+            Button("+") { operation = "+" }
+        }
+    }
+    .padding(20)
+    
+    let window = Window()
+    window.setTitle("Calculator")
+    window.setSize(width: 300, height: 450)
+    window.setContent(content)
+    
+    let app = Application.shared
+    app.setMainWindow(window)
+    app.run()
+}
+
+// MARK: - 示例 6: 颜色选择器
+
+func colorPickerApp() {
+    var selectedColor = Color.Blue
+    
+    let colorLabel = Text("Selected: Blue")
+        .fontSize(.Large)
+        .alignment(.Center)
+    
+    let content = VStack(spacing: 15) {
+        Text("Color Picker")
+            .fontSize(.ExtraLarge)
+            .foregroundColor(.Blue)
+            .alignment(.Center)
+        
+        colorLabel
+        
+        HStack(spacing: 10) {
+            Button("Red") {
+                selectedColor = .Red
+                colorLabel.text = "Selected: Red"
+            }
+            .backgroundColor(.Red)
+            .foregroundColor(.White)
+            
+            Button("Green") {
+                selectedColor = .Green
+                colorLabel.text = "Selected: Green"
+            }
+            .backgroundColor(.Green)
+            .foregroundColor(.White)
+            
+            Button("Blue") {
+                selectedColor = .Blue
+                colorLabel.text = "Selected: Blue"
+            }
+            .backgroundColor(.Blue)
+            .foregroundColor(.White)
+        }
+        
+        HStack(spacing: 10) {
+            Button("Yellow") {
+                selectedColor = .Yellow
+                colorLabel.text = "Selected: Yellow"
+            }
+            .backgroundColor(.Yellow)
+            .foregroundColor(.Black)
+            
+            Button("Cyan") {
+                selectedColor = .Cyan
+                colorLabel.text = "Selected: Cyan"
+            }
+            .backgroundColor(.Cyan)
+            .foregroundColor(.Black)
+            
+            Button("Magenta") {
+                selectedColor = .Magenta
+                colorLabel.text = "Selected: Magenta"
+            }
+            .backgroundColor(.Magenta)
+            .foregroundColor(.White)
+        }
+    }
+    .padding(30)
+    
+    let window = Window()
+    window.setTitle("Color Picker")
+    window.setSize(width: 400, height: 300)
+    window.setContent(content)
+    
+    let app = Application.shared
+    app.setMainWindow(window)
+    app.run()
+}
+
+// MARK: - 示例 7: 表单示例
+
+func formExample() {
+    let nameField = TextField("Name")
+    let emailField = TextField("Email")
+    let phoneField = TextField("Phone")
+    
+    let content = VStack(spacing: 15) {
+        Text("Registration Form")
+            .fontSize(.ExtraLarge)
+            .foregroundColor(.Blue)
+            .alignment(.Center)
+        
+        VStack(spacing: 5) {
+            Text("Name:")
+                .fontSize(.Medium)
+            nameField
+                .padding(5)
+        }
+        
+        VStack(spacing: 5) {
+            Text("Email:")
+                .fontSize(.Medium)
+            emailField
+                .padding(5)
+        }
+        
+        VStack(spacing: 5) {
+            Text("Phone:")
+                .fontSize(.Medium)
+            phoneField
+                .padding(5)
+        }
+        
+        HStack(spacing: 10) {
+            Button("Submit") {
+                print("Name: " + nameField.text)
+                print("Email: " + emailField.text)
+                print("Phone: " + phoneField.text)
+            }
+            .backgroundColor(.Blue)
+            .foregroundColor(.White)
+            
+            Button("Clear") {
+                nameField.text = ""
+                emailField.text = ""
+                phoneField.text = ""
+            }
+            .backgroundColor(.Gray)
+            .foregroundColor(.White)
+        }
+    }
+    .padding(30)
+    
+    let window = Window()
+    window.setTitle("Registration Form")
+    window.setSize(width: 450, height: 400)
+    window.setContent(content)
+    
+    let app = Application.shared
+    app.setMainWindow(window)
+    app.run()
+}
+
+// MARK: - 示例 8: 选项卡界面
+
+func tabbedInterface() {
+    var currentTab = 0
+    
+    let tabContent = VStack {
+        Text("Tab 1 Content")
+            .fontSize(.Large)
+    }
+    
+    let content = VStack(spacing: 10) {
+        HStack(spacing: 5) {
+            Button("Tab 1") {
+                currentTab = 1
+                tabContent.children = [Text("Tab 1 Content").fontSize(.Large)]
+            }
+            .backgroundColor(currentTab == 1 ? .Blue : .Gray)
+            .foregroundColor(.White)
+            
+            Button("Tab 2") {
+                currentTab = 2
+                tabContent.children = [Text("Tab 2 Content").fontSize(.Large)]
+            }
+            .backgroundColor(currentTab == 2 ? .Blue : .Gray)
+            .foregroundColor(.White)
+            
+            Button("Tab 3") {
+                currentTab = 3
+                tabContent.children = [Text("Tab 3 Content").fontSize(.Large)]
+            }
+            .backgroundColor(currentTab == 3 ? .Blue : .Gray)
+            .foregroundColor(.White)
+        }
+        
+        tabContent
+            .padding(20)
+    }
+    .padding(10)
+    
+    let window = Window()
+    window.setTitle("Tabbed Interface")
+    window.setSize(width: 500, height: 350)
+    window.setContent(content)
+    
+    let app = Application.shared
+    app.setMainWindow(window)
+    app.run()
+}
+
+// MARK: - 主函数
+
+func main() {
+    print("XWift UI 示例应用程序")
+    print("====================")
+    print("1. Hello World")
+    print("2. Login Screen")
+    print("3. Counter App")
+    print("4. Todo App")
+    print("5. Calculator")
+    print("6. Color Picker")
+    print("7. Form Example")
+    print("8. Tabbed Interface")
+    print("")
+    print("默认运行示例 1: Hello World")
+    print("")
+    
+    helloWorld()
+}
+
+main()

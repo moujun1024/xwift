@@ -48,6 +48,7 @@ set(XWIFT_MODULES
   Filesystem/path_utils.xw
   Config/config.xw
   Utils/utils.xw
+  UI/ui_dsl.xw
 )
 
 # Create libraries

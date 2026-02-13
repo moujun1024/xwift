@@ -1,0 +1,570 @@
+# XWift UI DSL - 声明式用户界面实现
+
+import Foundation
+import UI
+
+// MARK: - 基础类型
+
+enum Color {
+    case Black
+    case White
+    case Red
+    case Green
+    case Blue
+    case Yellow
+    case Cyan
+    case Magenta
+    case Gray
+    case LightGray
+    case DarkGray
+    
+    init(r: Int, g: Int, b: Int, a: Int = 255) {
+        self = .Custom
+    }
+}
+
+enum Alignment {
+    case Leading
+    case Center
+    case Trailing
+}
+
+enum FontSize {
+    case Small
+    case Medium
+    case Large
+    case ExtraLarge
+}
+
+struct Size {
+    var width: Double
+    var height: Double
+    
+    init(width: Double, height: Double) {
+        self.width = width
+        self.height = height
+    }
+    
+    init(_ width: Double, _ height: Double) {
+        self.width = width
+        self.height = height
+    }
+}
+
+struct Point {
+    var x: Double
+    var y: Double
+    
+    init(x: Double, y: Double) {
+        self.x = x
+        self.y = y
+    }
+    
+    init(_ x: Double, _ y: Double) {
+        self.x = x
+        self.y = y
+    }
+}
+
+struct EdgeInsets {
+    var top: Double
+    var left: Double
+    var bottom: Double
+    var right: Double
+    
+    init(top: Double, left: Double, bottom: Double, right: Double) {
+        self.top = top
+        self.left = left
+        self.bottom = bottom
+        self.right = right
+    }
+    
+    init(_ all: Double) {
+        self.top = all
+        self.left = all
+        self.bottom = all
+        self.right = all
+    }
+    
+    init(horizontal: Double, vertical: Double) {
+        self.top = vertical
+        self.left = horizontal
+        self.bottom = vertical
+        self.right = horizontal
+    }
+}
+
+// MARK: - View 协议
+
+protocol View {
+    func build() -> UI.View
+}
+
+// MARK: - 文本组件
+
+class Text: View {
+    let text: String
+    var color: Color? = nil
+    var fontSize: FontSize? = nil
+    var alignment: Alignment? = nil
+    var padding: EdgeInsets? = nil
+    var margin: EdgeInsets? = nil
+    
+    init(_ text: String) {
+        self.text = text
+    }
+    
+    func foregroundColor(_ color: Color) -> Text {
+        self.color = color
+        return self
+    }
+    
+    func fontSize(_ size: FontSize) -> Text {
+        self.fontSize = size
+        return self
+    }
+    
+    func alignment(_ align: Alignment) -> Text {
+        self.alignment = align
+        return self
+    }
+    
+    func padding(_ padding: Double) -> Text {
+        self.padding = EdgeInsets(padding)
+        return self
+    }
+    
+    func padding(_ padding: EdgeInsets) -> Text {
+        self.padding = padding
+        return self
+    }
+    
+    func margin(_ margin: Double) -> Text {
+        self.margin = EdgeInsets(margin)
+        return self
+    }
+    
+    func margin(_ margin: EdgeInsets) -> Text {
+        self.margin = margin
+        return self
+    }
+    
+    func build() -> UI.View {
+        let uiText = UI.Text(text)
+        
+        if let color = color {
+            uiText.setForegroundColor(color)
+        }
+        
+        if let fontSize = fontSize {
+            uiText.setFontSize(fontSize)
+        }
+        
+        if let alignment = alignment {
+            uiText.setAlignment(alignment)
+        }
+        
+        if let padding = padding {
+            uiText.setPadding(padding)
+        }
+        
+        if let margin = margin {
+            uiText.setMargin(margin)
+        }
+        
+        return uiText
+    }
+}
+
+// MARK: - 按钮组件
+
+class Button: View {
+    let title: String
+    var action: (() -> Void)? = nil
+    var color: Color? = nil
+    var backgroundColor: Color? = nil
+    var padding: EdgeInsets? = nil
+    var margin: EdgeInsets? = nil
+    
+    init(_ title: String, action: @escaping () -> Void = {}) {
+        self.title = title
+        self.action = action
+    }
+    
+    func onAction(_ action: @escaping () -> Void) -> Button {
+        self.action = action
+        return self
+    }
+    
+    func foregroundColor(_ color: Color) -> Button {
+        self.color = color
+        return self
+    }
+    
+    func backgroundColor(_ color: Color) -> Button {
+        self.backgroundColor = color
+        return self
+    }
+    
+    func padding(_ padding: Double) -> Button {
+        self.padding = EdgeInsets(padding)
+        return self
+    }
+    
+    func padding(_ padding: EdgeInsets) -> Button {
+        self.padding = padding
+        return self
+    }
+    
+    func margin(_ margin: Double) -> Button {
+        self.margin = EdgeInsets(margin)
+        return self
+    }
+    
+    func margin(_ margin: EdgeInsets) -> Button {
+        self.margin = margin
+        return self
+    }
+    
+    func build() -> UI.View {
+        let uiButton = UI.Button(title)
+        
+        if let action = action {
+            uiButton.setAction(action)
+        }
+        
+        if let color = color {
+            uiButton.setForegroundColor(color)
+        }
+        
+        if let backgroundColor = backgroundColor {
+            uiButton.setBackgroundColor(backgroundColor)
+        }
+        
+        if let padding = padding {
+            uiButton.setPadding(padding)
+        }
+        
+        if let margin = margin {
+            uiButton.setMargin(margin)
+        }
+        
+        return uiButton
+    }
+}
+
+// MARK: - 文本输入框组件
+
+class TextField: View {
+    let placeholder: String
+    var text: String = ""
+    var padding: EdgeInsets? = nil
+    var margin: EdgeInsets? = nil
+    var onTextChanged: ((String) -> Void)? = nil
+    
+    init(_ placeholder: String) {
+        self.placeholder = placeholder
+    }
+    
+    func setText(_ text: String) -> TextField {
+        self.text = text
+        return self
+    }
+    
+    func padding(_ padding: Double) -> TextField {
+        self.padding = EdgeInsets(padding)
+        return self
+    }
+    
+    func padding(_ padding: EdgeInsets) -> TextField {
+        self.padding = padding
+        return self
+    }
+    
+    func margin(_ margin: Double) -> TextField {
+        self.margin = EdgeInsets(margin)
+        return self
+    }
+    
+    func margin(_ margin: EdgeInsets) -> TextField {
+        self.margin = margin
+        return self
+    }
+    
+    func onTextChanged(_ handler: @escaping (String) -> Void) -> TextField {
+        self.onTextChanged = handler
+        return self
+    }
+    
+    func build() -> UI.View {
+        let uiTextField = UI.TextField(placeholder)
+        uiTextField.setText(text)
+        
+        if let padding = padding {
+            uiTextField.setPadding(padding)
+        }
+        
+        if let margin = margin {
+            uiTextField.setMargin(margin)
+        }
+        
+        if let onTextChanged = onTextChanged {
+            // TODO: 实现文本变化回调
+        }
+        
+        return uiTextField
+    }
+}
+
+// MARK: - 容器组件
+
+class Container: View {
+    var children: [View] = []
+    var spacing: Double = 8.0
+    var padding: EdgeInsets? = nil
+    var margin: EdgeInsets? = nil
+    
+    init(spacing: Double = 8.0, @ViewBuilder content: () -> [View]) {
+        self.spacing = spacing
+        self.children = content()
+    }
+    
+    func padding(_ padding: Double) -> Container {
+        self.padding = EdgeInsets(padding)
+        return self
+    }
+    
+    func padding(_ padding: EdgeInsets) -> Container {
+        self.padding = padding
+        return self
+    }
+    
+    func margin(_ margin: Double) -> Container {
+        self.margin = EdgeInsets(margin)
+        return self
+    }
+    
+    func margin(_ margin: EdgeInsets) -> Container {
+        self.margin = margin
+        return self
+    }
+    
+    func build() -> UI.View {
+        let uiContainer = UI.Container()
+        uiContainer.setSpacing(spacing)
+        
+        for child in children {
+            uiContainer.addChild(child.build())
+        }
+        
+        if let padding = padding {
+            uiContainer.setPadding(padding)
+        }
+        
+        if let margin = margin {
+            uiContainer.setMargin(margin)
+        }
+        
+        return uiContainer
+    }
+}
+
+class VStack: Container {
+    override func build() -> UI.View {
+        let uiVStack = UI.VStack()
+        uiVStack.setSpacing(spacing)
+        
+        for child in children {
+            uiVStack.addChild(child.build())
+        }
+        
+        if let padding = padding {
+            uiVStack.setPadding(padding)
+        }
+        
+        if let margin = margin {
+            uiVStack.setMargin(margin)
+        }
+        
+        return uiVStack
+    }
+}
+
+class HStack: Container {
+    override func build() -> UI.View {
+        let uiHStack = UI.HStack()
+        uiHStack.setSpacing(spacing)
+        
+        for child in children {
+            uiHStack.addChild(child.build())
+        }
+        
+        if let padding = padding {
+            uiHStack.setPadding(padding)
+        }
+        
+        if let margin = margin {
+            uiHStack.setMargin(margin)
+        }
+        
+        return uiHStack
+    }
+}
+
+class ZStack: Container {
+    override func build() -> UI.View {
+        let uiZStack = UI.ZStack()
+        
+        for child in children {
+            uiZStack.addChild(child.build())
+        }
+        
+        if let padding = padding {
+            uiZStack.setPadding(padding)
+        }
+        
+        if let margin = margin {
+            uiZStack.setMargin(margin)
+        }
+        
+        return uiZStack
+    }
+}
+
+// MARK: - 窗口
+
+class Window {
+    var title: String = "XWift Window"
+    var size: Size = Size(800, 600)
+    var position: Point = Point(100, 100)
+    var content: View? = nil
+    
+    init() {}
+    
+    func setTitle(_ title: String) -> Window {
+        self.title = title
+        return self
+    }
+    
+    func setSize(_ size: Size) -> Window {
+        self.size = size
+        return self
+    }
+    
+    func setSize(width: Double, height: Double) -> Window {
+        self.size = Size(width, height)
+        return self
+    }
+    
+    func setPosition(_ position: Point) -> Window {
+        self.position = position
+        return self
+    }
+    
+    func setPosition(x: Double, y: Double) -> Window {
+        self.position = Point(x, y)
+        return self
+    }
+    
+    func setContent(_ content: View) -> Window {
+        self.content = content
+        return self
+    }
+    
+    func show() {
+        let uiWindow = UI.Window()
+        uiWindow.setTitle(title)
+        uiWindow.setSize(size)
+        uiWindow.setPosition(position)
+        
+        if let content = content {
+            uiWindow.setContent(content.build())
+        }
+        
+        uiWindow.show()
+    }
+    
+    func hide() {
+        // TODO: 实现 hide
+    }
+    
+    func close() {
+        // TODO: 实现 close
+    }
+}
+
+// MARK: - 应用程序
+
+class Application {
+    static let shared = Application()
+    
+    var mainWindow: Window? = nil
+    
+    private init() {}
+    
+    func setMainWindow(_ window: Window) {
+        self.mainWindow = window
+    }
+    
+    func run() {
+        guard let window = mainWindow else {
+            print("Error: No main window set")
+            return
+        }
+        
+        let uiWindow = UI.Window()
+        uiWindow.setTitle(window.title)
+        uiWindow.setSize(window.size)
+        uiWindow.setPosition(window.position)
+        
+        if let content = window.content {
+            uiWindow.setContent(content.build())
+        }
+        
+        let uiApp = UI.Application.getInstance()
+        uiApp.setMainWindow(uiWindow)
+        uiApp.run()
+    }
+    
+    func quit() {
+        // TODO: 实现 quit
+    }
+}
+
+// MARK: - ViewBuilder
+
+@resultBuilder
+struct ViewBuilder {
+    static func buildBlock() -> [View] {
+        return []
+    }
+    
+    static func buildBlock(_ content: View) -> [View] {
+        return [content]
+    }
+    
+    static func buildBlock(_ content: View...) -> [View] {
+        return content
+    }
+    
+    static func buildIf(_ content: View?) -> [View] {
+        if let content = content {
+            return [content]
+        }
+        return []
+    }
+    
+    static func buildEither(first: View) -> [View] {
+        return [first]
+    }
+    
+    static func buildEither(second: View) -> [View] {
+        return [second]
+    }
+}
+
+// MARK: - 辅助函数
+
+func timestamp() -> Int64 {
+    return Int64(Date().timeIntervalSince1970)
+}

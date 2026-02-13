@@ -33,6 +33,7 @@ add_subdirectory(lib/Filesystem)
 add_subdirectory(lib/Logging)
 add_subdirectory(lib/stdlib)
 add_subdirectory(lib/FFI)
+add_subdirectory(lib/UI)
 
 if(BUILD_PLUGINS)
   add_subdirectory(lib/Plugin)
