@@ -7,8 +7,10 @@ set(JSON_SOURCES
   JSON/JSON.cpp
 )
 
-set(HTTP_CLIENT_SOURCES
+set(HTTP_SOURCES
   HTTP/HTTPClient.cpp
+  HTTP/URLParser.cpp
+  HTTP/BodyEncoder.cpp
 )
 
 set(JSON_CLIENT_SOURCES
@@ -20,31 +22,31 @@ set(TERMINAL_SOURCES
 )
 
 add_library(XWiftJSON STATIC ${JSON_SOURCES})
-add_library(XWiftHTTPClient STATIC ${HTTP_CLIENT_SOURCES})
+add_library(XWiftHTTP STATIC ${HTTP_SOURCES})
 add_library(XWiftJSONClient STATIC ${JSON_CLIENT_SOURCES})
 
 add_library(XWiftTerminal STATIC ${TERMINAL_SOURCES})
 
 if(WIN32)
-  set(HTTP_SOURCES
+  set(HTTP_BACKEND_SOURCES
     HTTP/Win32Backend.cpp
   )
-  add_library(XWiftHTTP STATIC ${HTTP_SOURCES})
-  target_link_libraries(XWiftHTTP winhttp)
+  add_library(XWiftHTTPBackend STATIC ${HTTP_BACKEND_SOURCES})
+  target_link_libraries(XWiftHTTPBackend winhttp)
 else()
-  set(HTTP_SOURCES
+  set(HTTP_BACKEND_SOURCES
     HTTP/CurlBackend.cpp
   )
-  add_library(XWiftHTTP STATIC ${HTTP_SOURCES})
+  add_library(XWiftHTTPBackend STATIC ${HTTP_BACKEND_SOURCES})
   find_package(CURL REQUIRED)
-  target_include_directories(XWiftHTTP PRIVATE
+  target_include_directories(XWiftHTTPBackend PRIVATE
     ${CURL_INCLUDE_DIRS}
   )
-  target_link_libraries(XWiftHTTP ${CURL_LIBRARIES})
+  target_link_libraries(XWiftHTTPBackend ${CURL_LIBRARIES})
 endif()
 
-target_link_libraries(XWiftHTTPClient
-  XWiftHTTP
+target_link_libraries(XWiftHTTP
+  XWiftHTTPBackend
 )
 
 target_link_libraries(XWiftJSONClient
@@ -56,10 +58,6 @@ target_include_directories(XWiftHTTP PUBLIC
 )
 
 target_include_directories(XWiftJSON PUBLIC
-  ${CMAKE_SOURCE_DIR}/include
-)
-
-target_include_directories(XWiftHTTPClient PUBLIC
   ${CMAKE_SOURCE_DIR}/include
 )
 

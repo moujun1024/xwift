@@ -93,9 +93,13 @@ public:
 
 std::string httpGet(const std::string& url);
 std::string httpPost(const std::string& url, const std::string& data);
+std::string httpPostJSON(const std::string& url, const std::string& json);
+std::string httpPostForm(const std::string& url, const std::map<std::string, std::string>& params);
 std::string httpPut(const std::string& url, const std::string& data);
 std::string httpDelete(const std::string& url);
 int httpStatusCode(const std::string& url);
+bool httpIsSuccess(const std::string& url);
+std::string httpGetHeader(const std::string& url, const std::string& header);
 std::string urlEncode(const std::string& str);
 std::string urlDecode(const std::string& str);
 std::string jsonParse(const std::string& jsonStr);
@@ -305,6 +309,54 @@ public:
         return Value(int64_t(httpStatusCode(*url)));
       }
       return Value(int64_t(0));
+    };
+    
+    Functions["httpPostJSON"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 2) return Value("");
+      if (auto url = args[0].get<std::string>()) {
+        if (auto json = args[1].get<std::string>()) {
+          return Value(httpPostJSON(*url, *json));
+        }
+      }
+      return Value("");
+    };
+    
+    Functions["httpPostForm"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 2) return Value("");
+      if (auto url = args[0].get<std::string>()) {
+        if (auto params = args[1].get<std::vector<Value>>()) {
+          std::map<std::string, std::string> paramMap;
+          for (size_t i = 0; i < params->size(); i += 2) {
+            if (i + 1 < params->size()) {
+              if (auto key = (*params)[i].get<std::string>()) {
+                if (auto value = (*params)[i + 1].get<std::string>()) {
+                  paramMap[*key] = *value;
+                }
+              }
+            }
+          }
+          return Value(httpPostForm(*url, paramMap));
+        }
+      }
+      return Value("");
+    };
+    
+    Functions["httpIsSuccess"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(false);
+      if (auto url = args[0].get<std::string>()) {
+        return Value(httpIsSuccess(*url));
+      }
+      return Value(false);
+    };
+    
+    Functions["httpGetHeader"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 2) return Value("");
+      if (auto url = args[0].get<std::string>()) {
+        if (auto header = args[1].get<std::string>()) {
+          return Value(httpGetHeader(*url, *header));
+        }
+      }
+      return Value("");
     };
     
     Functions["urlEncode"] = [this](std::vector<Value> args) -> Value {
@@ -555,6 +607,83 @@ public:
         }
       }
       return Value(false);
+    };
+    
+    Functions["jsonPretty"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value("");
+      if (auto jsonStr = args[0].get<std::string>()) {
+        json::JSONParser parser;
+        json::JSONValue result = parser.parse(*jsonStr);
+        if (parser.hasError()) {
+          return Value("");
+        }
+        return Value(result.toPrettyString());
+      }
+      return Value("");
+    };
+    
+    Functions["jsonGetArray"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(std::vector<Value>());
+      if (auto jsonStr = args[0].get<std::string>()) {
+        json::JSONParser parser;
+        json::JSONValue result = parser.parse(*jsonStr);
+        if (parser.hasError()) {
+          return Value(std::vector<Value>());
+        }
+        if (auto arr = result.asArray()) {
+          std::vector<Value> values;
+          for (const auto& item : *arr) {
+            values.push_back(Value(item.toString()));
+          }
+          return Value(values);
+        }
+      }
+      return Value(std::vector<Value>());
+    };
+    
+    Functions["jsonGetObject"] = [this](std::vector<Value> args) -> Value {
+      if (args.empty()) return Value(std::vector<Value>());
+      if (auto jsonStr = args[0].get<std::string>()) {
+        json::JSONParser parser;
+        json::JSONValue result = parser.parse(*jsonStr);
+        if (parser.hasError()) {
+          return Value(std::vector<Value>());
+        }
+        if (auto obj = result.asObject()) {
+          std::vector<Value> values;
+          for (const auto& pair : *obj) {
+            values.push_back(Value(pair.first));
+            values.push_back(Value(pair.second.toString()));
+          }
+          return Value(values);
+        }
+      }
+      return Value(std::vector<Value>());
+    };
+    
+    Functions["jsonSerialize"] = [this](std::vector<Value> args) -> Value {
+      if (args.size() < 2) return Value("");
+      if (auto typeName = args[0].get<std::string>()) {
+        if (auto fields = args[1].get<std::vector<Value>>()) {
+          std::map<std::string, json::JSONValue> jsonFields;
+          for (size_t i = 0; i < fields->size(); i += 2) {
+            if (i + 1 < fields->size()) {
+              if (auto key = (*fields)[i].get<std::string>()) {
+                if (auto value = (*fields)[i + 1].get<std::string>()) {
+                  json::JSONParser parser;
+                  json::JSONValue jsonValue = parser.parse(*value);
+                  if (!parser.hasError()) {
+                    jsonFields[*key] = jsonValue;
+                  }
+                }
+              }
+            }
+          }
+          json::JSONValue customObj = json::JSONValue::fromCustom(*typeName, jsonFields);
+          return Value(customObj.toString());
+        }
+      }
+      return Value("");
     };
     
     Functions["split"] = [](std::vector<Value> args) -> Value {
@@ -1782,32 +1911,83 @@ private:
 
 std::string httpGet(const std::string& url) {
   http::HTTPClient client;
-  http::Response response = client.get(url);
-  return response.body;
+  auto result = client.get(url);
+  if (result.isErr()) {
+    return "";
+  }
+  return result.unwrap().body;
 }
 
 std::string httpPost(const std::string& url, const std::string& data) {
   http::HTTPClient client;
-  http::Response response = client.post(url, data);
-  return response.body;
+  auto result = client.post(url, data);
+  if (result.isErr()) {
+    return "";
+  }
+  return result.unwrap().body;
+}
+
+std::string httpPostJSON(const std::string& url, const std::string& json) {
+  http::HTTPClient client;
+  auto result = client.postJSON(url, json);
+  if (result.isErr()) {
+    return "";
+  }
+  return result.unwrap().body;
+}
+
+std::string httpPostForm(const std::string& url, const std::map<std::string, std::string>& params) {
+  http::HTTPClient client;
+  auto result = client.postForm(url, params);
+  if (result.isErr()) {
+    return "";
+  }
+  return result.unwrap().body;
 }
 
 std::string httpPut(const std::string& url, const std::string& data) {
   http::HTTPClient client;
-  http::Response response = client.put(url, data);
-  return response.body;
+  auto result = client.put(url, data);
+  if (result.isErr()) {
+    return "";
+  }
+  return result.unwrap().body;
 }
 
 std::string httpDelete(const std::string& url) {
   http::HTTPClient client;
-  http::Response response = client.deleteRequest(url);
-  return response.body;
+  auto result = client.deleteRequest(url);
+  if (result.isErr()) {
+    return "";
+  }
+  return result.unwrap().body;
 }
 
 int httpStatusCode(const std::string& url) {
   http::HTTPClient client;
-  http::Response response = client.get(url);
-  return response.statusCode;
+  auto result = client.get(url);
+  if (result.isErr()) {
+    return -1;
+  }
+  return result.unwrap().statusCode;
+}
+
+bool httpIsSuccess(const std::string& url) {
+  http::HTTPClient client;
+  auto result = client.get(url);
+  if (result.isErr()) {
+    return false;
+  }
+  return result.unwrap().isSuccess();
+}
+
+std::string httpGetHeader(const std::string& url, const std::string& header) {
+  http::HTTPClient client;
+  auto result = client.get(url);
+  if (result.isErr()) {
+    return "";
+  }
+  return result.unwrap().getHeader(header);
 }
 
 std::string urlEncode(const std::string& str) {

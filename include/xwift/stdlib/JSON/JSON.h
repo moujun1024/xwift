@@ -43,6 +43,11 @@ public:
   JSONValue get(size_t index) const;
   
   std::string toString() const;
+  std::string toPrettyString(int indent = 0) const;
+  
+  static JSONValue fromCustom(const std::string& typeName, const std::map<std::string, JSONValue>& fields);
+  std::optional<std::string> getCustomType() const;
+  std::map<std::string, JSONValue> getCustomFields() const;
   
 private:
   std::variant<std::monostate, bool, double, std::string, 

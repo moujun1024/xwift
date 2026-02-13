@@ -130,6 +130,92 @@ std::string JSONValue::toString() const {
   return oss.str();
 }
 
+std::string JSONValue::toPrettyString(int indent) const {
+  std::ostringstream oss;
+  std::string indentStr(indent * 2, ' ');
+  
+  switch (getType()) {
+    case JSONType::Null:
+      oss << "null";
+      break;
+    case JSONType::Boolean:
+      if (auto val = std::get_if<bool>(&data)) {
+        oss << (*val ? "true" : "false");
+      }
+      break;
+    case JSONType::Number:
+      if (auto val = std::get_if<double>(&data)) {
+        oss << *val;
+      }
+      break;
+    case JSONType::String:
+      if (auto val = std::get_if<std::string>(&data)) {
+        oss << "\"" << jsonEscape(*val) << "\"";
+      }
+      break;
+    case JSONType::Array:
+      if (auto arr = std::get_if<std::vector<JSONValue>>(&data)) {
+        oss << "[\n";
+        for (size_t i = 0; i < arr->size(); i++) {
+          oss << indentStr << "  " << (*arr)[i].toPrettyString(indent + 1);
+          if (i < arr->size() - 1) {
+            oss << ",";
+          }
+          oss << "\n";
+        }
+        oss << indentStr << "]";
+      }
+      break;
+    case JSONType::Object:
+      if (auto obj = std::get_if<std::map<std::string, JSONValue>>(&data)) {
+        oss << "{\n";
+        bool first = true;
+        for (const auto& pair : *obj) {
+          if (!first) {
+            oss << ",\n";
+          }
+          oss << indentStr << "  \"" << jsonEscape(pair.first) << "\": " << pair.second.toPrettyString(indent + 1);
+          first = false;
+        }
+        oss << "\n" << indentStr << "}";
+      }
+      break;
+  }
+  
+  return oss.str();
+}
+
+JSONValue JSONValue::fromCustom(const std::string& typeName, const std::map<std::string, JSONValue>& fields) {
+  std::map<std::string, JSONValue> obj;
+  obj["__type__"] = JSONValue(typeName);
+  for (const auto& pair : fields) {
+    obj[pair.first] = pair.second;
+  }
+  return JSONValue(obj);
+}
+
+std::optional<std::string> JSONValue::getCustomType() const {
+  if (auto obj = std::get_if<std::map<std::string, JSONValue>>(&data)) {
+    auto it = obj->find("__type__");
+    if (it != obj->end()) {
+      return it->second.asString();
+    }
+  }
+  return std::nullopt;
+}
+
+std::map<std::string, JSONValue> JSONValue::getCustomFields() const {
+  std::map<std::string, JSONValue> result;
+  if (auto obj = std::get_if<std::map<std::string, JSONValue>>(&data)) {
+    for (const auto& pair : *obj) {
+      if (pair.first != "__type__") {
+        result[pair.first] = pair.second;
+      }
+    }
+  }
+  return result;
+}
+
 JSONParser::JSONParser() : pos(0), errorLine(0), errorColumn(0) {}
 
 JSONParser::~JSONParser() {}
@@ -496,28 +582,35 @@ void JSONParser::setError(const std::string& msg) {
 
 std::string jsonEscape(const std::string& str) {
   std::ostringstream oss;
-  for (size_t i = 0; i < str.length(); i++) {
+  for (size_t i = 0; i < str.length(); ) {
     unsigned char c = str[i];
     
-    if (c > 127) {
-      throw std::runtime_error("JSON library currently only supports ASCII characters. Non-ASCII character found at position " + std::to_string(i));
-    }
-    
-    switch (c) {
-      case '"': oss << "\\\""; break;
-      case '\\': oss << "\\\\"; break;
-      case '\b': oss << "\\b"; break;
-      case '\f': oss << "\\f"; break;
-      case '\n': oss << "\\n"; break;
-      case '\r': oss << "\\r"; break;
-      case '\t': oss << "\\t"; break;
-      default:
-        if (c < 32) {
+    if (c < 32) {
+      switch (c) {
+        case '"': oss << "\\\""; break;
+        case '\\': oss << "\\\\"; break;
+        case '\b': oss << "\\b"; break;
+        case '\f': oss << "\\f"; break;
+        case '\n': oss << "\\n"; break;
+        case '\r': oss << "\\r"; break;
+        case '\t': oss << "\\t"; break;
+        default:
           oss << "\\u" << std::hex << std::setw(4) << std::setfill('0') << (int)c;
-        } else {
+          break;
+      }
+      i++;
+    } else if (c < 127) {
+      switch (c) {
+        case '"': oss << "\\\""; break;
+        case '\\': oss << "\\\\"; break;
+        default:
           oss << c;
-        }
-        break;
+          break;
+      }
+      i++;
+    } else {
+      oss << c;
+      i++;
     }
   }
   return oss.str();
@@ -542,10 +635,21 @@ std::string jsonUnescape(const std::string& str) {
             std::string hex = str.substr(i + 2, 4);
             try {
               unsigned int code = std::stoul(hex, nullptr, 16);
-              if (code > 127) {
-                throw std::runtime_error("JSON library currently only supports ASCII characters. Non-ASCII Unicode escape \\u" + hex + " found");
+              if (code <= 127) {
+                result += static_cast<char>(code);
+              } else if (code <= 0x7FF) {
+                result += static_cast<char>(0xC0 | (code >> 6));
+                result += static_cast<char>(0x80 | (code & 0x3F));
+              } else if (code <= 0xFFFF) {
+                result += static_cast<char>(0xE0 | (code >> 12));
+                result += static_cast<char>(0x80 | ((code >> 6) & 0x3F));
+                result += static_cast<char>(0x80 | (code & 0x3F));
+              } else {
+                result += static_cast<char>(0xF0 | (code >> 18));
+                result += static_cast<char>(0x80 | ((code >> 12) & 0x3F));
+                result += static_cast<char>(0x80 | ((code >> 6) & 0x3F));
+                result += static_cast<char>(0x80 | (code & 0x3F));
               }
-              result += static_cast<char>(code);
             } catch (...) {
               throw std::runtime_error("Invalid Unicode escape sequence: \\u" + hex);
             }

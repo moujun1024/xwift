@@ -1,9 +1,12 @@
 #include "xwift/stdlib/HTTP/HTTPClient.h"
 #include "xwift/stdlib/HTTP/HTTPPlugin.h"
+#include "xwift/stdlib/HTTP/URLParser.h"
+#include "xwift/stdlib/HTTP/BodyEncoder.h"
 #include "xwift/Plugin/Plugin.h"
 #include "xwift/Basic/Error.h"
 #include <sstream>
 #include <iomanip>
+#include <map>
 
 namespace xwift {
 namespace http {
@@ -27,15 +30,53 @@ HTTPClient::HTTPClient() {
 HTTPClient::~HTTPClient() = default;
 
 Result<Response> HTTPClient::get(const std::string& url) {
+  URL parsedUrl = URLParser::parse(url);
+  if (!parsedUrl.isValid()) {
+    return Result<Response>::err(Error::http("Invalid URL: " + url));
+  }
+  
   if (backend) {
-    return backend->get(url);
+    return backend->get(parsedUrl.toString());
   }
   return Result<Response>::err(Error::http("HTTP backend not initialized"));
 }
 
 Result<Response> HTTPClient::post(const std::string& url, const std::string& data) {
+  URL parsedUrl = URLParser::parse(url);
+  if (!parsedUrl.isValid()) {
+    return Result<Response>::err(Error::http("Invalid URL: " + url));
+  }
+  
   if (backend) {
-    return backend->post(url, data);
+    return backend->post(parsedUrl.toString(), data);
+  }
+  return Result<Response>::err(Error::http("HTTP backend not initialized"));
+}
+
+Result<Response> HTTPClient::postJSON(const std::string& url, const std::string& json) {
+  URL parsedUrl = URLParser::parse(url);
+  if (!parsedUrl.isValid()) {
+    return Result<Response>::err(Error::http("Invalid URL: " + url));
+  }
+  
+  if (backend) {
+    setHeader("Content-Type", "application/json");
+    return backend->post(parsedUrl.toString(), json);
+  }
+  return Result<Response>::err(Error::http("HTTP backend not initialized"));
+}
+
+Result<Response> HTTPClient::postForm(const std::string& url, const std::map<std::string, std::string>& params) {
+  URL parsedUrl = URLParser::parse(url);
+  if (!parsedUrl.isValid()) {
+    return Result<Response>::err(Error::http("Invalid URL: " + url));
+  }
+  
+  std::string body = BodyEncoder::encodeFormURLEncoded(params);
+  
+  if (backend) {
+    setHeader("Content-Type", "application/x-www-form-urlencoded");
+    return backend->post(parsedUrl.toString(), body);
   }
   return Result<Response>::err(Error::http("HTTP backend not initialized"));
 }
