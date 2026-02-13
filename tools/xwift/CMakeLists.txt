@@ -17,3 +17,15 @@ target_link_libraries(xwift PRIVATE
   XWiftJSONClient
   xwift_plugin
 )
+
+if(WIN32)
+  target_link_libraries(xwift PRIVATE
+    XWiftHTTP
+  )
+else()
+  find_package(CURL REQUIRED)
+  target_link_libraries(xwift PRIVATE
+    XWiftHTTP
+    ${CURL_LIBRARIES}
+  )
+endif()

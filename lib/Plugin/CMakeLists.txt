@@ -18,21 +18,25 @@ endif()
 
 add_library(xwift_http_plugin SHARED
   ../stdlib/HTTP/HTTPPlugin.cpp
-  ../stdlib/HTTP/Win32Backend.cpp
-)
-
-target_include_directories(xwift_http_plugin PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../include
-)
-
-target_link_libraries(xwift_http_plugin PUBLIC
-  xwift_plugin
-  xwift_basic
 )
 
 if(WIN32)
+  target_sources(xwift_http_plugin PRIVATE
+    ../stdlib/HTTP/Win32Backend.cpp
+  )
   target_link_libraries(xwift_http_plugin PUBLIC
     winhttp
+  )
+else()
+  target_sources(xwift_http_plugin PRIVATE
+    ../stdlib/HTTP/CurlBackend.cpp
+  )
+  find_package(CURL REQUIRED)
+  target_include_directories(xwift_http_plugin PRIVATE
+    ${CURL_INCLUDE_DIRS}
+  )
+  target_link_libraries(xwift_http_plugin PUBLIC
+    ${CURL_LIBRARIES}
   )
 endif()
 

@@ -1,6 +1,9 @@
 #include "xwift/stdlib/HTTP/HTTPPlugin.h"
-#include "xwift/stdlib/HTTP/HTTPBackend.h"
+#ifdef _WIN32
 #include "xwift/stdlib/HTTP/Win32Backend.h"
+#else
+#include "xwift/stdlib/HTTP/CurlBackend.h"
+#endif
 
 namespace xwift {
 namespace http {
@@ -9,7 +12,7 @@ bool HTTPPlugin::initialize() {
 #ifdef _WIN32
   backend = std::make_shared<Win32HTTPBackend>();
 #else
-  return false;
+  backend = std::make_shared<CurlHTTPBackend>();
 #endif
   return backend != nullptr;
 }

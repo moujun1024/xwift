@@ -9,9 +9,11 @@
 #include <sstream>
 #include <algorithm>
 #include <filesystem>
+#ifdef _WIN32
 #include <windows.h>
 #include <io.h>
 #include <fcntl.h>
+#endif
 #include "xwift/Basic/Version.h"
 #include "xwift/xwift.h"
 #include "xwift/Lexer/Lexer.h"

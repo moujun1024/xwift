@@ -3,10 +3,6 @@ project(XWiftStdLib)
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
-set(HTTP_SOURCES
-  HTTP/Win32Backend.cpp
-)
-
 set(JSON_SOURCES
   JSON/JSON.cpp
 )
@@ -19,12 +15,27 @@ set(JSON_CLIENT_SOURCES
   JSON/JSONClient.cpp
 )
 
-add_library(XWiftHTTP STATIC ${HTTP_SOURCES})
 add_library(XWiftJSON STATIC ${JSON_SOURCES})
 add_library(XWiftHTTPClient STATIC ${HTTP_CLIENT_SOURCES})
 add_library(XWiftJSONClient STATIC ${JSON_CLIENT_SOURCES})
 
-target_link_libraries(XWiftHTTP winhttp)
+if(WIN32)
+  set(HTTP_SOURCES
+    HTTP/Win32Backend.cpp
+  )
+  add_library(XWiftHTTP STATIC ${HTTP_SOURCES})
+  target_link_libraries(XWiftHTTP winhttp)
+else()
+  set(HTTP_SOURCES
+    HTTP/CurlBackend.cpp
+  )
+  add_library(XWiftHTTP STATIC ${HTTP_SOURCES})
+  find_package(CURL REQUIRED)
+  target_include_directories(XWiftHTTP PRIVATE
+    ${CURL_INCLUDE_DIRS}
+  )
+  target_link_libraries(XWiftHTTP ${CURL_LIBRARIES})
+endif()
 
 target_link_libraries(XWiftHTTPClient
   XWiftHTTP
