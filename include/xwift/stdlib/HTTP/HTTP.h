@@ -2,7 +2,14 @@
 #define XWIFT_HTTP_HTTP_H
 
 #include "xwift/stdlib/HTTP/HTTPBackend.h"
+#include "xwift/stdlib/HTTP/HTTPPlugin.h"
 #include <memory>
+
+#ifdef _WIN32
+#define XWIFT_PLATFORM_SUFFIX ".dll"
+#else
+#define XWIFT_PLATFORM_SUFFIX ".so"
+#endif
 
 namespace xwift {
 namespace http {
@@ -21,7 +28,7 @@ public:
   void setTimeout(int milliseconds);
   
 private:
-  std::unique_ptr<HTTPBackend> backend;
+  std::shared_ptr<IHTTPBackend> backend;
 };
 
 std::string urlEncode(const std::string& str);

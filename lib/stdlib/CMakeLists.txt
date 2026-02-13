@@ -1,13 +1,9 @@
 cmake_minimum_required(VERSION 3.20)
 project(XWiftStdLib)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 set(HTTP_SOURCES
-  HTTP/HTTP.cpp
   HTTP/Win32Backend.cpp
 )
 
@@ -15,15 +11,41 @@ set(JSON_SOURCES
   JSON/JSON.cpp
 )
 
+set(HTTP_CLIENT_SOURCES
+  HTTP/HTTPClient.cpp
+)
+
+set(JSON_CLIENT_SOURCES
+  JSON/JSONClient.cpp
+)
+
 add_library(XWiftHTTP STATIC ${HTTP_SOURCES})
 add_library(XWiftJSON STATIC ${JSON_SOURCES})
+add_library(XWiftHTTPClient STATIC ${HTTP_CLIENT_SOURCES})
+add_library(XWiftJSONClient STATIC ${JSON_CLIENT_SOURCES})
 
 target_link_libraries(XWiftHTTP winhttp)
+
+target_link_libraries(XWiftHTTPClient
+  XWiftHTTP
+)
+
+target_link_libraries(XWiftJSONClient
+  XWiftJSON
+)
 
 target_include_directories(XWiftHTTP PUBLIC
   ${CMAKE_SOURCE_DIR}/include
 )
 
 target_include_directories(XWiftJSON PUBLIC
+  ${CMAKE_SOURCE_DIR}/include
+)
+
+target_include_directories(XWiftHTTPClient PUBLIC
+  ${CMAKE_SOURCE_DIR}/include
+)
+
+target_include_directories(XWiftJSONClient PUBLIC
   ${CMAKE_SOURCE_DIR}/include
 )

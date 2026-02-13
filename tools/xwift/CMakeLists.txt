@@ -13,6 +13,7 @@ target_link_libraries(xwift PRIVATE
   XWiftParser
   XWiftLexer
   XWiftBasic
-  XWiftHTTP
-  XWiftJSON
+  XWiftHTTPClient
+  XWiftJSONClient
+  xwift_plugin
 )

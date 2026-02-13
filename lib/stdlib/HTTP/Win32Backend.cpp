@@ -1,4 +1,4 @@
-#include "xwift/stdlib/HTTP/HTTPBackend.h"
+#include "xwift/stdlib/HTTP/HTTPPlugin.h"
 #include <windows.h>
 #include <winhttp.h>
 
@@ -7,7 +7,7 @@
 namespace xwift {
 namespace http {
 
-class Win32HTTPBackend : public HTTPBackend {
+class Win32HTTPBackend : public IHTTPBackend {
 public:
   Win32HTTPBackend() : hSession(nullptr), hConnect(nullptr), timeout(30000) {
     hSession = WinHttpOpen(
@@ -261,11 +261,15 @@ private:
     WinHttpCloseHandle(hRequest);
     return response;
   }
+  
+  std::string getName() const override {
+    return "Win32";
+  }
+  
+  std::string getVersion() const override {
+    return "1.0.0";
+  }
 };
-
-std::unique_ptr<HTTPBackend> createHTTPBackend() {
-  return std::make_unique<Win32HTTPBackend>();
-}
 
 }
 }

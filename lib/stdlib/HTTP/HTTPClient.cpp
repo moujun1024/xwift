@@ -1,38 +1,80 @@
-#include "xwift/stdlib/HTTP/HTTP.h"
-#include "xwift/stdlib/HTTP/HTTPBackend.h"
+#include "xwift/stdlib/HTTP/HTTPClient.h"
+#include "xwift/stdlib/HTTP/HTTPPlugin.h"
+#include "xwift/Plugin/Plugin.h"
 #include <sstream>
 #include <iomanip>
 
 namespace xwift {
 namespace http {
 
-HTTPClient::HTTPClient() : backend(createHTTPBackend()) {
+HTTPClient::HTTPClient() {
+  auto& pluginManager = plugin::PluginManager::getInstance();
+  auto httpPlugin = dynamic_cast<HTTPPlugin*>(pluginManager.getPlugin("HTTP"));
+  
+  if (httpPlugin) {
+    backend = httpPlugin->getBackend();
+  } else {
+    if (pluginManager.loadPlugin("libhttp_plugin" XWIFT_PLATFORM_SUFFIX)) {
+      httpPlugin = dynamic_cast<HTTPPlugin*>(pluginManager.getPlugin("HTTP"));
+      if (httpPlugin) {
+        backend = httpPlugin->getBackend();
+      }
+    }
+  }
 }
 
 HTTPClient::~HTTPClient() = default;
 
 Response HTTPClient::get(const std::string& url) {
-  return backend->get(url);
+  if (backend) {
+    return backend->get(url);
+  }
+  Response response;
+  response.statusCode = -1;
+  response.error = HTTPError::Unknown;
+  return response;
 }
 
 Response HTTPClient::post(const std::string& url, const std::string& data) {
-  return backend->post(url, data);
+  if (backend) {
+    return backend->post(url, data);
+  }
+  Response response;
+  response.statusCode = -1;
+  response.error = HTTPError::Unknown;
+  return response;
 }
 
 Response HTTPClient::put(const std::string& url, const std::string& data) {
-  return backend->put(url, data);
+  if (backend) {
+    return backend->put(url, data);
+  }
+  Response response;
+  response.statusCode = -1;
+  response.error = HTTPError::Unknown;
+  return response;
 }
 
 Response HTTPClient::deleteRequest(const std::string& url) {
-  return backend->deleteRequest(url);
+  if (backend) {
+    return backend->deleteRequest(url);
+  }
+  Response response;
+  response.statusCode = -1;
+  response.error = HTTPError::Unknown;
+  return response;
 }
 
 void HTTPClient::setHeader(const std::string& key, const std::string& value) {
-  backend->setHeader(key, value);
+  if (backend) {
+    backend->setHeader(key, value);
+  }
 }
 
 void HTTPClient::setTimeout(int milliseconds) {
-  backend->setTimeout(milliseconds);
+  if (backend) {
+    backend->setTimeout(milliseconds);
+  }
 }
 
 std::string urlEncode(const std::string& str) {

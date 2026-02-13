@@ -11,6 +11,7 @@ set(XWIFT_VERSION_PATCH 0)
 set(XWIFT_VERSION "${XWIFT_VERSION_MAJOR}.${XWIFT_VERSION_MINOR}.${XWIFT_VERSION_PATCH}")
 
 option(BUILD_TESTING "Build and run tests" ON)
+option(BUILD_PLUGINS "Build plugin libraries" ON)
 
 message(STATUS "XWift Version: ${XWIFT_VERSION}")
 
@@ -27,6 +28,11 @@ add_subdirectory(lib/Sema)
 add_subdirectory(lib/CodeGen)
 add_subdirectory(lib/Frontend)
 add_subdirectory(lib/stdlib)
+
+if(BUILD_PLUGINS)
+  add_subdirectory(lib/Plugin)
+endif()
+
 add_subdirectory(tools/xwift)
 
 if(BUILD_TESTING)
