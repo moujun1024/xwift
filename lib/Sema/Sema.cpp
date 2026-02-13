@@ -339,12 +339,7 @@ bool Sema::visit(FuncDecl* func) {
   }
   
   if (!CurrentFuncReturnType) {
-    DiagnosticError error;
-    error.Level = DiagLevel::Error;
-    error.Category = ErrorCategory::Type;
-    error.Message = "unknown type '" + func->ReturnType + "'";
-    error.ErrorID = ErrorCodes::Type::InvalidType;
-    Diags.report(error);
+    Diags.report(diag::invalidType(func->ReturnType, SourceLocation(), currentFilename));
     return false;
   }
   
@@ -353,12 +348,7 @@ bool Sema::visit(FuncDecl* func) {
   for (const auto& param : func->Params) {
     auto paramType = lookupType(param.second);
     if (!paramType) {
-      DiagnosticError error;
-      error.Level = DiagLevel::Error;
-      error.Category = ErrorCategory::Type;
-      error.Message = "unknown type '" + param.second + "' for parameter '" + param.first + "'";
-      error.ErrorID = ErrorCodes::Type::InvalidType;
-      Diags.report(error);
+      Diags.report(diag::invalidType(param.second, SourceLocation(), currentFilename));
       CurrentFuncReturnType = prevReturnType;
       return false;
     }
@@ -386,12 +376,7 @@ bool Sema::visit(VarDeclStmt* var) {
   if (!var->Type.empty()) {
     type = lookupType(var->Type);
     if (!type) {
-      DiagnosticError error;
-      error.Level = DiagLevel::Error;
-      error.Category = ErrorCategory::Type;
-      error.Message = "unknown type '" + var->Type + "'";
-      error.ErrorID = ErrorCodes::Type::InvalidType;
-      Diags.report(error);
+      Diags.report(diag::invalidType(var->Type, SourceLocation(), currentFilename));
       return false;
     }
   }
@@ -415,12 +400,7 @@ bool Sema::visit(VarDeclStmt* var) {
   }
   
   if (!type) {
-    DiagnosticError error;
-    error.Level = DiagLevel::Error;
-    error.Category = ErrorCategory::Type;
-    error.Message = "cannot infer type for variable '" + var->Name + "'";
-    error.ErrorID = ErrorCodes::Type::MissingTypeAnnotation;
-    Diags.report(error);
+    Diags.report(diag::missingTypeAnnotation(var->Name, SourceLocation(), currentFilename));
     return false;
   }
   
@@ -559,12 +539,7 @@ bool Sema::visit(ReturnStmt* ret) {
     }
   } else {
     if (CurrentFuncReturnType && CurrentFuncReturnType->Name != "Void") {
-      DiagnosticError error;
-      error.Level = DiagLevel::Error;
-      error.Category = ErrorCategory::Semantic;
-      error.Message = "non-void function must return a value";
-      error.ErrorID = ErrorCodes::Semantic::InvalidReturn;
-      Diags.report(error);
+      Diags.report(diag::invalidReturn(SourceLocation(), currentFilename));
       return false;
     }
   }
@@ -583,12 +558,7 @@ bool Sema::visit(IfStmt* ifStmt) {
   if (condType) {
     auto boolType = std::make_shared<BuiltinType>(BuiltinType::Bool);
     if (!isTypeCompatible(condType, boolType)) {
-      DiagnosticError error;
-      error.Level = DiagLevel::Error;
-      error.Category = ErrorCategory::Type;
-      error.Message = "condition must be of type Bool";
-      error.ErrorID = ErrorCodes::Type::CannotConvert;
-      Diags.report(error);
+      Diags.report(diag::conditionNotBool(SourceLocation(), currentFilename));
     }
   }
   
@@ -612,12 +582,7 @@ bool Sema::visit(WhileStmt* whileStmt) {
   if (condType) {
     auto boolType = std::make_shared<BuiltinType>(BuiltinType::Bool);
     if (!isTypeCompatible(condType, boolType)) {
-      DiagnosticError error;
-      error.Level = DiagLevel::Error;
-      error.Category = ErrorCategory::Type;
-      error.Message = "condition must be of type Bool";
-      error.ErrorID = ErrorCodes::Type::CannotConvert;
-      Diags.report(error);
+      Diags.report(diag::conditionNotBool(SourceLocation(), currentFilename));
     }
   }
   
@@ -734,12 +699,7 @@ bool Sema::visit(BinaryExpr* binary) {
   if (binary->Op == "+" || binary->Op == "-" || binary->Op == "*" || binary->Op == "/") {
     if (lhsType && rhsType) {
       if (lhsType->Name == "Bool" || rhsType->Name == "Bool") {
-        DiagnosticError error;
-        error.Level = DiagLevel::Error;
-        error.Category = ErrorCategory::Semantic;
-        error.Message = "cannot perform arithmetic operations on Bool type";
-        error.ErrorID = ErrorCodes::Semantic::InvalidOperation;
-        Diags.report(error);
+        Diags.report(diag::arithmeticOnBool(SourceLocation(), currentFilename));
         return false;
       }
       if (lhsType->isInteger() && rhsType->isInteger()) {
@@ -755,33 +715,18 @@ bool Sema::visit(BinaryExpr* binary) {
   } else if (binary->Op == "==" || binary->Op == "!=" || binary->Op == "<" || binary->Op == ">" || binary->Op == "<=" || binary->Op == ">=") {
     if (lhsType && rhsType) {
       if (!isTypeCompatible(lhsType, rhsType) && !isTypeCompatible(rhsType, lhsType)) {
-        DiagnosticError error;
-        error.Level = DiagLevel::Error;
-        error.Category = ErrorCategory::Type;
-        error.Message = "cannot compare '" + lhsType->Name + "' with '" + rhsType->Name + "'";
-        error.ErrorID = ErrorCodes::Type::CannotConvert;
-        Diags.report(error);
+        Diags.report(diag::cannotCompare(lhsType->Name, rhsType->Name, SourceLocation(), currentFilename));
         return false;
       }
     }
     binary->ExprType = std::make_shared<BuiltinType>(BuiltinType::Bool);
   } else if (binary->Op == "&&" || binary->Op == "||") {
     if (lhsType && lhsType->Name != "Bool") {
-      DiagnosticError error;
-      error.Level = DiagLevel::Error;
-      error.Category = ErrorCategory::Type;
-      error.Message = "left operand of '" + binary->Op + "' must be of type Bool";
-      error.ErrorID = ErrorCodes::Type::CannotConvert;
-      Diags.report(error);
+      Diags.report(diag::operandNotBool(binary->Op, "left", SourceLocation(), currentFilename));
       return false;
     }
     if (rhsType && rhsType->Name != "Bool") {
-      DiagnosticError error;
-      error.Level = DiagLevel::Error;
-      error.Category = ErrorCategory::Type;
-      error.Message = "right operand of '" + binary->Op + "' must be of type Bool";
-      error.ErrorID = ErrorCodes::Type::CannotConvert;
-      Diags.report(error);
+      Diags.report(diag::operandNotBool(binary->Op, "right", SourceLocation(), currentFilename));
       return false;
     }
     binary->ExprType = std::make_shared<BuiltinType>(BuiltinType::Bool);
@@ -802,12 +747,7 @@ bool Sema::visit(AssignExpr* assign) {
   auto valueType = getExprType(assign->Value.get());
   
   if (!varType) {
-    DiagnosticError error;
-    error.Level = DiagLevel::Error;
-    error.Category = ErrorCategory::Semantic;
-    error.Message = "cannot assign to expression";
-    error.ErrorID = ErrorCodes::Semantic::InvalidAssignment;
-    Diags.report(error);
+    Diags.report(diag::cannotAssignToExpr(SourceLocation(), currentFilename));
     return false;
   }
   
@@ -905,12 +845,7 @@ bool Sema::visit(ArrayLiteralExpr* lit) {
     }
     
     if (!isTypeCompatible(currentType, elemType)) {
-      DiagnosticError error;
-      error.Level = DiagLevel::Error;
-      error.Category = ErrorCategory::Type;
-      error.Message = "array elements must have the same type";
-      error.ErrorID = ErrorCodes::Type::CannotConvert;
-      Diags.report(error);
+      Diags.report(diag::arrayElementsNotSameType(SourceLocation(), currentFilename));
       return false;
     }
   }
@@ -940,12 +875,7 @@ bool Sema::visit(ArrayIndexExpr* expr) {
   }
   
   if (!indexType->isInteger()) {
-    DiagnosticError error;
-    error.Level = DiagLevel::Error;
-    error.Category = ErrorCategory::Type;
-    error.Message = "array index must be of integer type";
-    error.ErrorID = ErrorCodes::Type::CannotConvert;
-    Diags.report(error);
+    Diags.report(diag::arrayIndexNotInt(SourceLocation(), currentFilename));
     return false;
   }
   
@@ -1034,15 +964,7 @@ bool Sema::visit(IfLetStmt* stmt) {
   }
   
   if (!optionalType->isOptional()) {
-    DiagnosticError error;
-    error.Level = DiagLevel::Error;
-    error.Category = ErrorCategory::Type;
-    error.Message = "if let requires an optional value";
-    error.ErrorID = ErrorCodes::Type::InvalidOptional;
-    error.Line = stmt->OptionalExpr->Loc.Line;
-    error.Column = stmt->OptionalExpr->Loc.Col;
-    error.FileName = currentFilename;
-    Diags.report(error);
+    Diags.report(diag::ifLetNotOptional(stmt->OptionalExpr->Loc, currentFilename));
     return false;
   }
   
@@ -1078,15 +1000,7 @@ bool Sema::visit(GuardStmt* stmt) {
   }
   
   if (!optionalType->isOptional()) {
-    DiagnosticError error;
-    error.Level = DiagLevel::Error;
-    error.Category = ErrorCategory::Type;
-    error.Message = "guard let requires an optional value";
-    error.ErrorID = ErrorCodes::Type::InvalidOptional;
-    error.Line = stmt->OptionalExpr->Loc.Line;
-    error.Column = stmt->OptionalExpr->Loc.Col;
-    error.FileName = currentFilename;
-    Diags.report(error);
+    Diags.report(diag::guardNotOptional(stmt->OptionalExpr->Loc, currentFilename));
     return false;
   }
   
@@ -1112,15 +1026,7 @@ bool Sema::visit(ClassDecl* cls) {
   }
   
   if (ClassTable.find(cls->Name) != ClassTable.end()) {
-    DiagnosticError error;
-    error.Level = DiagLevel::Error;
-    error.Category = ErrorCategory::Semantic;
-    error.Message = "redefinition of class '" + cls->Name + "'";
-    error.ErrorID = ErrorCodes::Semantic::Redefinition;
-    error.Line = 0;
-    error.Column = 0;
-    error.FileName = currentFilename;
-    Diags.report(error);
+    Diags.report(diag::classRedefinition(cls->Name, SourceLocation(), currentFilename));
     return false;
   }
   
@@ -1146,15 +1052,7 @@ bool Sema::visit(StructDecl* st) {
   }
   
   if (StructTable.find(st->Name) != StructTable.end()) {
-    DiagnosticError error;
-    error.Level = DiagLevel::Error;
-    error.Category = ErrorCategory::Semantic;
-    error.Message = "redefinition of struct '" + st->Name + "'";
-    error.ErrorID = ErrorCodes::Semantic::Redefinition;
-    error.Line = 0;
-    error.Column = 0;
-    error.FileName = currentFilename;
-    Diags.report(error);
+    Diags.report(diag::structRedefinition(st->Name, SourceLocation(), currentFilename));
     return false;
   }
   
@@ -1181,15 +1079,7 @@ bool Sema::visit(PropertyDecl* prop) {
   
   auto type = lookupType(prop->Type);
   if (!type) {
-    DiagnosticError error;
-    error.Level = DiagLevel::Error;
-    error.Category = ErrorCategory::Type;
-    error.Message = "unknown type '" + prop->Type + "'";
-    error.ErrorID = ErrorCodes::Type::InvalidType;
-    error.Line = 0;
-    error.Column = 0;
-    error.FileName = currentFilename;
-    Diags.report(error);
+    Diags.report(diag::invalidType(prop->Type, SourceLocation(), currentFilename));
     return false;
   }
   
@@ -1209,15 +1099,7 @@ bool Sema::visit(MethodDecl* method) {
   
   auto returnType = lookupType(method->ReturnType);
   if (!returnType) {
-    DiagnosticError error;
-    error.Level = DiagLevel::Error;
-    error.Category = ErrorCategory::Type;
-    error.Message = "unknown return type '" + method->ReturnType + "'";
-    error.ErrorID = ErrorCodes::Type::InvalidType;
-    error.Line = 0;
-    error.Column = 0;
-    error.FileName = currentFilename;
-    Diags.report(error);
+    Diags.report(diag::invalidType(method->ReturnType, SourceLocation(), currentFilename));
     return false;
   }
   
@@ -1226,15 +1108,7 @@ bool Sema::visit(MethodDecl* method) {
   for (auto& param : method->Params) {
     auto paramType = lookupType(param.second);
     if (!paramType) {
-      DiagnosticError error;
-      error.Level = DiagLevel::Error;
-      error.Category = ErrorCategory::Type;
-      error.Message = "unknown parameter type '" + param.second + "'";
-      error.ErrorID = ErrorCodes::Type::InvalidType;
-      error.Line = 0;
-      error.Column = 0;
-      error.FileName = currentFilename;
-      Diags.report(error);
+      Diags.report(diag::invalidType(param.second, SourceLocation(), currentFilename));
       exitScope();
       return false;
     }
@@ -1261,15 +1135,7 @@ bool Sema::visit(ConstructorDecl* ctor) {
   for (auto& param : ctor->Params) {
     auto paramType = lookupType(param.second);
     if (!paramType) {
-      DiagnosticError error;
-      error.Level = DiagLevel::Error;
-      error.Category = ErrorCategory::Type;
-      error.Message = "unknown parameter type '" + param.second + "'";
-      error.ErrorID = ErrorCodes::Type::InvalidType;
-      error.Line = 0;
-      error.Column = 0;
-      error.FileName = currentFilename;
-      Diags.report(error);
+      Diags.report(diag::invalidType(param.second, SourceLocation(), currentFilename));
       exitScope();
       return false;
     }

@@ -588,6 +588,180 @@ namespace diag {
         
         return error;
     }
+    
+    inline DiagnosticError invalidType(const std::string& typeName,
+                                    const SourceLocation& loc = SourceLocation(),
+                                    const std::string& filename = "") {
+        DiagnosticError error("unknown type '" + typeName + "'", loc, filename,
+                          ErrorCodes::Type::InvalidType);
+        error.Category = ErrorCategory::Type;
+        
+        error.addSuggestion("Check the spelling of '" + typeName + "'");
+        error.addSuggestion("Make sure the type is imported or defined");
+        
+        return error;
+    }
+    
+    inline DiagnosticError missingTypeAnnotation(const std::string& varName,
+                                            const SourceLocation& loc = SourceLocation(),
+                                            const std::string& filename = "") {
+        DiagnosticError error("cannot infer type for variable '" + varName + "'", loc, filename,
+                          ErrorCodes::Type::MissingTypeAnnotation);
+        error.Category = ErrorCategory::Type;
+        
+        error.addSuggestion("Add an explicit type annotation");
+        error.addSuggestion("Provide an initial value to help type inference");
+        
+        return error;
+    }
+    
+    inline DiagnosticError invalidReturn(const SourceLocation& loc = SourceLocation(),
+                                       const std::string& filename = "") {
+        DiagnosticError error("non-void function must return a value", loc, filename,
+                          ErrorCodes::Semantic::InvalidReturn);
+        error.Category = ErrorCategory::Semantic;
+        
+        error.addSuggestion("Add a return statement with a value");
+        error.addSuggestion("Change the function return type to Void");
+        
+        return error;
+    }
+    
+    inline DiagnosticError conditionNotBool(const SourceLocation& loc = SourceLocation(),
+                                           const std::string& filename = "") {
+        DiagnosticError error("condition must be of type Bool", loc, filename,
+                          ErrorCodes::Type::CannotConvert);
+        error.Category = ErrorCategory::Type;
+        
+        error.addSuggestion("Use a boolean expression");
+        error.addSuggestion("Convert the condition to Bool");
+        
+        return error;
+    }
+    
+    inline DiagnosticError cannotCompare(const std::string& type1, const std::string& type2,
+                                     const SourceLocation& loc = SourceLocation(),
+                                     const std::string& filename = "") {
+        DiagnosticError error("cannot compare '" + type1 + "' with '" + type2 + "'", loc, filename,
+                          ErrorCodes::Type::CannotConvert);
+        error.Category = ErrorCategory::Type;
+        
+        error.addSuggestion("Convert one of the types to match the other");
+        error.addSuggestion("Use compatible types for comparison");
+        
+        return error;
+    }
+    
+    inline DiagnosticError operandNotBool(const std::string& op, const std::string& side,
+                                        const SourceLocation& loc = SourceLocation(),
+                                        const std::string& filename = "") {
+        DiagnosticError error(side + " operand of '" + op + "' must be of type Bool", loc, filename,
+                          ErrorCodes::Type::CannotConvert);
+        error.Category = ErrorCategory::Type;
+        
+        error.addSuggestion("Use a boolean expression");
+        error.addSuggestion("Convert the operand to Bool");
+        
+        return error;
+    }
+    
+    inline DiagnosticError arrayIndexNotInt(const SourceLocation& loc = SourceLocation(),
+                                           const std::string& filename = "") {
+        DiagnosticError error("array index must be of integer type", loc, filename,
+                          ErrorCodes::Type::CannotConvert);
+        error.Category = ErrorCategory::Type;
+        
+        error.addSuggestion("Use an integer expression for the index");
+        error.addSuggestion("Convert the index to Int64");
+        
+        return error;
+    }
+    
+    inline DiagnosticError guardNotOptional(const SourceLocation& loc = SourceLocation(),
+                                           const std::string& filename = "") {
+        DiagnosticError error("guard let requires an optional value", loc, filename,
+                          ErrorCodes::Type::InvalidOptional);
+        error.Category = ErrorCategory::Type;
+        
+        error.addSuggestion("Use an optional value with guard let");
+        error.addSuggestion("Check if the value is of optional type");
+        
+        return error;
+    }
+    
+    inline DiagnosticError classRedefinition(const std::string& className,
+                                             const SourceLocation& loc = SourceLocation(),
+                                             const std::string& filename = "") {
+        DiagnosticError error("redefinition of class '" + className + "'", loc, filename,
+                          ErrorCodes::Semantic::Redefinition);
+        error.Category = ErrorCategory::Semantic;
+        
+        error.addSuggestion("Rename class");
+        error.addSuggestion("Remove duplicate class definition");
+        
+        return error;
+    }
+    
+    inline DiagnosticError structRedefinition(const std::string& structName,
+                                              const SourceLocation& loc = SourceLocation(),
+                                              const std::string& filename = "") {
+        DiagnosticError error("redefinition of struct '" + structName + "'", loc, filename,
+                          ErrorCodes::Semantic::Redefinition);
+        error.Category = ErrorCategory::Semantic;
+        
+        error.addSuggestion("Rename struct");
+        error.addSuggestion("Remove duplicate struct definition");
+        
+        return error;
+    }
+    
+    inline DiagnosticError arithmeticOnBool(const SourceLocation& loc = SourceLocation(),
+                                           const std::string& filename = "") {
+        DiagnosticError error("cannot perform arithmetic operations on Bool type", loc, filename,
+                          ErrorCodes::Semantic::InvalidOperation);
+        error.Category = ErrorCategory::Semantic;
+        
+        error.addSuggestion("Use logical operators (&&, ||) instead");
+        error.addSuggestion("Convert Bool to Int64 if arithmetic is needed");
+        
+        return error;
+    }
+    
+    inline DiagnosticError cannotAssignToExpr(const SourceLocation& loc = SourceLocation(),
+                                             const std::string& filename = "") {
+        DiagnosticError error("cannot assign to expression", loc, filename,
+                          ErrorCodes::Semantic::InvalidAssignment);
+        error.Category = ErrorCategory::Semantic;
+        
+        error.addSuggestion("Assign to a variable or property");
+        error.addSuggestion("Check if the target is assignable");
+        
+        return error;
+    }
+    
+    inline DiagnosticError arrayElementsNotSameType(const SourceLocation& loc = SourceLocation(),
+                                                   const std::string& filename = "") {
+        DiagnosticError error("array elements must have the same type", loc, filename,
+                          ErrorCodes::Type::CannotConvert);
+        error.Category = ErrorCategory::Type;
+        
+        error.addSuggestion("Ensure all elements have compatible types");
+        error.addSuggestion("Use explicit type conversion if needed");
+        
+        return error;
+    }
+    
+    inline DiagnosticError ifLetNotOptional(const SourceLocation& loc = SourceLocation(),
+                                             const std::string& filename = "") {
+        DiagnosticError error("if let requires an optional value", loc, filename,
+                          ErrorCodes::Type::InvalidOptional);
+        error.Category = ErrorCategory::Type;
+        
+        error.addSuggestion("Use an optional value with if let");
+        error.addSuggestion("Check if the value is of optional type");
+        
+        return error;
+    }
 }
 
 }
