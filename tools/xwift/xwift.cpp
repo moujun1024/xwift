@@ -97,6 +97,7 @@ public:
       
       DiagnosticEngine diag;
       diag.setFilename(filename);
+      diag.setSourceCode(source);
       Sema sema(diag);
       sema.setFilename(filename);
       
@@ -108,7 +109,8 @@ public:
         return 1;
       }
       
-      Interpreter interpreter;
+      Interpreter interpreter(diag);
+      interpreter.setFilename(filename);
       
       fs::path filePath(filename);
       std::string basePath = filePath.parent_path().string();
@@ -116,6 +118,10 @@ public:
         basePath = ".";
       }
       interpreter.run(program.get(), basePath);
+      
+      if (diag.hasErrors()) {
+        return 1;
+      }
       
       return 0;
     } catch (const DiagnosticError& e) {
@@ -150,6 +156,7 @@ public:
       
       DiagnosticEngine diag;
       diag.setFilename(filename);
+      diag.setSourceCode(source);
       Sema sema(diag);
       sema.setFilename(filename);
       

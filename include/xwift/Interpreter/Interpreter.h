@@ -72,6 +72,7 @@ std::string jsonGet(const std::string& jsonStr, const std::string& key);
 
 class Interpreter {
 public:
+  DiagnosticEngine& Diags;
   std::vector<std::map<std::string, Value>> ScopeStack;
   std::map<std::string, std::function<Value(std::vector<Value>)>> Functions;
   std::map<std::string, FuncDecl*> UserFunctions;
@@ -80,6 +81,11 @@ public:
   size_t CurrentStep = 0;
   bool HasReturn = false;
   Value ReturnValue;
+  std::string currentFilename = "";
+  
+  void setFilename(const std::string& filename) {
+    currentFilename = filename;
+  }
   
   void enterScope() {
     ScopeStack.push_back(std::map<std::string, Value>());
@@ -114,7 +120,7 @@ public:
     return nullptr;
   }
   
-  Interpreter() {
+  Interpreter(DiagnosticEngine& diag) : Diags(diag) {
     Functions["setCursor"] = [](std::vector<Value> args) -> Value {
       return Value(int64_t(0));
     };
@@ -792,14 +798,26 @@ private:
       int64_t step = getInt(stepVal);
       
       if (step == 0) {
-        throw std::runtime_error("For loop step cannot be zero");
+        DiagnosticError error;
+        error.Level = DiagLevel::Fatal;
+        error.Category = ErrorCategory::Runtime;
+        error.Message = "for loop step cannot be zero";
+        error.ErrorID = ErrorCodes::Runtime::DivisionByZero;
+        Diags.report(error);
+        return;
       }
       
       enterScope();
       for (int64_t i = start; (step > 0 ? i < end : i > end); i += step) {
         CurrentStep++;
         if (CurrentStep > MaxSteps) {
-          throw std::runtime_error("Execution timeout: infinite loop detected");
+          DiagnosticError error;
+          error.Level = DiagLevel::Fatal;
+          error.Category = ErrorCategory::Runtime;
+          error.Message = "execution timeout: infinite loop detected";
+          error.ErrorID = ErrorCodes::Runtime::StackOverflow;
+          Diags.report(error);
+          return;
         }
         
         setVariable(forStmt->VarName, Value(i));
@@ -895,7 +913,8 @@ private:
         return Value(int64_t(0));
       }
       
-      throw diag::undefinedVariable(id->Name);
+      Diags.report(diag::undefinedVariable(id->Name, id->Loc, currentFilename));
+      return Value();
     }
     
     if (auto optUnwrap = dynamic_cast<OptionalUnwrapExpr*>(expr)) {
@@ -903,7 +922,15 @@ private:
       
       if (targetVal.isNil()) {
         if (optUnwrap->IsForceUnwrap) {
-          throw std::runtime_error("Fatal error: Force unwrapped a nil value");
+          DiagnosticError error;
+          error.Level = DiagLevel::Fatal;
+          error.Category = ErrorCategory::Runtime;
+          error.Message = "force unwrapped a nil value";
+          error.ErrorID = ErrorCodes::Runtime::NullPointer;
+          error.Line = optUnwrap->Loc.Line;
+          error.Column = optUnwrap->Loc.Col;
+          error.FileName = currentFilename;
+          Diags.report(error);
         }
         return Value();
       }
@@ -929,6 +956,17 @@ private:
         if (auto idx = indexVal.get<int64_t>()) {
           if (*idx >= 0 && *idx < (int64_t)arr->size()) {
             return (*arr)[*idx];
+          } else {
+            DiagnosticError error;
+            error.Level = DiagLevel::Fatal;
+            error.Category = ErrorCategory::Runtime;
+            error.Message = "array index out of bounds";
+            error.ErrorID = ErrorCodes::Runtime::IndexOutOfBounds;
+            error.Line = arrIdx->Loc.Line;
+            error.Column = arrIdx->Loc.Col;
+            error.FileName = currentFilename;
+            Diags.report(error);
+            return Value();
           }
         }
       }
@@ -980,6 +1018,23 @@ private:
         if (auto l = lhs.get<int64_t>()) {
           if (auto r = rhs.get<int64_t>()) {
             return Value(*r != 0 ? *l / *r : 0);
+          }
+          if (auto l = lhs.get<double>()) {
+            if (auto r = rhs.get<double>()) {
+              if (*r == 0.0) {
+                DiagnosticError error;
+                error.Level = DiagLevel::Fatal;
+                error.Category = ErrorCategory::Runtime;
+                error.Message = "division by zero";
+                error.ErrorID = ErrorCodes::Runtime::DivisionByZero;
+                error.Line = binary->Loc.Line;
+                error.Column = binary->Loc.Col;
+                error.FileName = currentFilename;
+                Diags.report(error);
+                return Value();
+              }
+              return Value(*l / *r);
+            }
           }
         }
       }
@@ -1046,6 +1101,7 @@ private:
             bool savedHasReturn = HasReturn;
             HasReturn = false;
             enterScope();
+            Diags.pushStackFrame(func->Name, currentFilename, call->Loc.Line, call->Loc.Col);
             for (size_t i = 0; i < func->Params.size() && i < call->Args.size(); i++) {
               setVariable(func->Params[i].first, evaluate(call->Args[i].get()));
             }
@@ -1053,6 +1109,7 @@ private:
             runBlock(block, &retVal);
             HasReturn = savedHasReturn;
             exitScope();
+            Diags.popStackFrame();
             return retVal;
           }
         }

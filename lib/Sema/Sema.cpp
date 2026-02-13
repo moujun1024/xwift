@@ -114,7 +114,7 @@ bool Sema::addSymbol(const std::string& name, std::shared_ptr<Type> type) {
   if (!ScopeStack.empty()) {
     auto& currentScope = ScopeStack.back();
     if (currentScope.find(name) != currentScope.end()) {
-      Diags.report(DiagLevel::Error, "Redefinition of variable '" + name + "'", SourceLocation(), currentFilename);
+      Diags.report(diag::redefinition(name, SourceLocation(), currentFilename));
       return false;
     }
     currentScope[name] = type;
@@ -272,7 +272,7 @@ bool Sema::visit(FuncDecl* func) {
   }
   
   if (FunctionTable.find(func->Name) != FunctionTable.end()) {
-    Diags.report(DiagLevel::Error, "Redefinition of function '" + func->Name + "'", SourceLocation(), currentFilename);
+    Diags.report(diag::redefinition(func->Name, SourceLocation(), currentFilename));
     return false;
   }
   
@@ -287,7 +287,12 @@ bool Sema::visit(FuncDecl* func) {
   }
   
   if (!CurrentFuncReturnType) {
-    Diags.report(DiagLevel::Error, "Unknown return type '" + func->ReturnType + "'", SourceLocation(), currentFilename);
+    DiagnosticError error;
+    error.Level = DiagLevel::Error;
+    error.Category = ErrorCategory::Type;
+    error.Message = "unknown type '" + func->ReturnType + "'";
+    error.ErrorID = ErrorCodes::Type::InvalidType;
+    Diags.report(error);
     return false;
   }
   
@@ -296,7 +301,12 @@ bool Sema::visit(FuncDecl* func) {
   for (const auto& param : func->Params) {
     auto paramType = lookupType(param.second);
     if (!paramType) {
-      Diags.report(DiagLevel::Error, "Unknown type '" + param.second + "' for parameter '" + param.first + "'", SourceLocation(), currentFilename);
+      DiagnosticError error;
+      error.Level = DiagLevel::Error;
+      error.Category = ErrorCategory::Type;
+      error.Message = "unknown type '" + param.second + "' for parameter '" + param.first + "'";
+      error.ErrorID = ErrorCodes::Type::InvalidType;
+      Diags.report(error);
       CurrentFuncReturnType = prevReturnType;
       return false;
     }
@@ -324,7 +334,12 @@ bool Sema::visit(VarDeclStmt* var) {
   if (!var->Type.empty()) {
     type = lookupType(var->Type);
     if (!type) {
-      Diags.report(DiagLevel::Error, "Unknown type '" + var->Type + "'", SourceLocation(), currentFilename);
+      DiagnosticError error;
+      error.Level = DiagLevel::Error;
+      error.Category = ErrorCategory::Type;
+      error.Message = "unknown type '" + var->Type + "'";
+      error.ErrorID = ErrorCodes::Type::InvalidType;
+      Diags.report(error);
       return false;
     }
   }
@@ -339,7 +354,7 @@ bool Sema::visit(VarDeclStmt* var) {
     
     if (type) {
       if (!isTypeCompatible(initType, type)) {
-        Diags.report(DiagLevel::Error, "Cannot initialize '" + var->Type + "' with expression of type '" + initType->Name + "'", SourceLocation(), currentFilename);
+        Diags.report(diag::typeMismatch(var->Type, initType->Name, SourceLocation(), currentFilename));
         return false;
       }
     } else {
@@ -348,7 +363,12 @@ bool Sema::visit(VarDeclStmt* var) {
   }
   
   if (!type) {
-    Diags.report(DiagLevel::Error, "Cannot infer type for variable '" + var->Name + "'", SourceLocation(), currentFilename);
+    DiagnosticError error;
+    error.Level = DiagLevel::Error;
+    error.Category = ErrorCategory::Type;
+    error.Message = "cannot infer type for variable '" + var->Name + "'";
+    error.ErrorID = ErrorCodes::Type::MissingTypeAnnotation;
+    Diags.report(error);
     return false;
   }
   
@@ -482,12 +502,17 @@ bool Sema::visit(ReturnStmt* ret) {
     }
     
     if (CurrentFuncReturnType && !isTypeCompatible(exprType, CurrentFuncReturnType)) {
-      Diags.report(DiagLevel::Error, "Cannot convert return expression of type '" + exprType->Name + "' to return type '" + CurrentFuncReturnType->Name + "'", SourceLocation(), currentFilename);
+      Diags.report(diag::typeMismatch(CurrentFuncReturnType->Name, exprType->Name, SourceLocation(), currentFilename));
       return false;
     }
   } else {
     if (CurrentFuncReturnType && CurrentFuncReturnType->Name != "Void") {
-      Diags.report(DiagLevel::Error, "Non-void function must return a value", SourceLocation(), currentFilename);
+      DiagnosticError error;
+      error.Level = DiagLevel::Error;
+      error.Category = ErrorCategory::Semantic;
+      error.Message = "non-void function must return a value";
+      error.ErrorID = ErrorCodes::Semantic::InvalidReturn;
+      Diags.report(error);
       return false;
     }
   }
@@ -506,7 +531,12 @@ bool Sema::visit(IfStmt* ifStmt) {
   if (condType) {
     auto boolType = std::make_shared<BuiltinType>(BuiltinType::Bool);
     if (!isTypeCompatible(condType, boolType)) {
-      Diags.report(DiagLevel::Error, "Condition must be of type Bool", SourceLocation(), currentFilename);
+      DiagnosticError error;
+      error.Level = DiagLevel::Error;
+      error.Category = ErrorCategory::Type;
+      error.Message = "condition must be of type Bool";
+      error.ErrorID = ErrorCodes::Type::CannotConvert;
+      Diags.report(error);
     }
   }
   
@@ -530,7 +560,12 @@ bool Sema::visit(WhileStmt* whileStmt) {
   if (condType) {
     auto boolType = std::make_shared<BuiltinType>(BuiltinType::Bool);
     if (!isTypeCompatible(condType, boolType)) {
-      Diags.report(DiagLevel::Error, "Condition must be of type Bool", SourceLocation(), currentFilename);
+      DiagnosticError error;
+      error.Level = DiagLevel::Error;
+      error.Category = ErrorCategory::Type;
+      error.Message = "condition must be of type Bool";
+      error.ErrorID = ErrorCodes::Type::CannotConvert;
+      Diags.report(error);
     }
   }
   
@@ -619,7 +654,7 @@ bool Sema::visit(CallExpr* call) {
   
   auto it = FunctionTable.find(call->Callee);
   if (it == FunctionTable.end()) {
-    Diags.report(DiagLevel::Error, "Use of undefined function '" + call->Callee + "'", SourceLocation(), currentFilename);
+    Diags.report(diag::undefinedFunction(call->Callee, SourceLocation(), currentFilename));
     return false;
   }
   
@@ -647,7 +682,12 @@ bool Sema::visit(BinaryExpr* binary) {
   if (binary->Op == "+" || binary->Op == "-" || binary->Op == "*" || binary->Op == "/") {
     if (lhsType && rhsType) {
       if (lhsType->Name == "Bool" || rhsType->Name == "Bool") {
-        Diags.report(DiagLevel::Error, "Cannot perform arithmetic operations on Bool type", SourceLocation(), currentFilename);
+        DiagnosticError error;
+        error.Level = DiagLevel::Error;
+        error.Category = ErrorCategory::Semantic;
+        error.Message = "cannot perform arithmetic operations on Bool type";
+        error.ErrorID = ErrorCodes::Semantic::InvalidOperation;
+        Diags.report(error);
         return false;
       }
       if (lhsType->isInteger() && rhsType->isInteger()) {
@@ -663,18 +703,33 @@ bool Sema::visit(BinaryExpr* binary) {
   } else if (binary->Op == "==" || binary->Op == "!=" || binary->Op == "<" || binary->Op == ">" || binary->Op == "<=" || binary->Op == ">=") {
     if (lhsType && rhsType) {
       if (!isTypeCompatible(lhsType, rhsType) && !isTypeCompatible(rhsType, lhsType)) {
-        Diags.report(DiagLevel::Error, "Cannot compare '" + lhsType->Name + "' with '" + rhsType->Name + "'", SourceLocation(), currentFilename);
+        DiagnosticError error;
+        error.Level = DiagLevel::Error;
+        error.Category = ErrorCategory::Type;
+        error.Message = "cannot compare '" + lhsType->Name + "' with '" + rhsType->Name + "'";
+        error.ErrorID = ErrorCodes::Type::CannotConvert;
+        Diags.report(error);
         return false;
       }
     }
     binary->ExprType = std::make_shared<BuiltinType>(BuiltinType::Bool);
   } else if (binary->Op == "&&" || binary->Op == "||") {
     if (lhsType && lhsType->Name != "Bool") {
-      Diags.report(DiagLevel::Error, "Left operand of '" + binary->Op + "' must be of type Bool", SourceLocation(), currentFilename);
+      DiagnosticError error;
+      error.Level = DiagLevel::Error;
+      error.Category = ErrorCategory::Type;
+      error.Message = "left operand of '" + binary->Op + "' must be of type Bool";
+      error.ErrorID = ErrorCodes::Type::CannotConvert;
+      Diags.report(error);
       return false;
     }
     if (rhsType && rhsType->Name != "Bool") {
-      Diags.report(DiagLevel::Error, "Right operand of '" + binary->Op + "' must be of type Bool", SourceLocation(), currentFilename);
+      DiagnosticError error;
+      error.Level = DiagLevel::Error;
+      error.Category = ErrorCategory::Type;
+      error.Message = "right operand of '" + binary->Op + "' must be of type Bool";
+      error.ErrorID = ErrorCodes::Type::CannotConvert;
+      Diags.report(error);
       return false;
     }
     binary->ExprType = std::make_shared<BuiltinType>(BuiltinType::Bool);
@@ -695,13 +750,18 @@ bool Sema::visit(AssignExpr* assign) {
   auto valueType = getExprType(assign->Value.get());
   
   if (!varType) {
-    Diags.report(DiagLevel::Error, "Cannot assign to expression", SourceLocation(), currentFilename);
+    DiagnosticError error;
+    error.Level = DiagLevel::Error;
+    error.Category = ErrorCategory::Semantic;
+    error.Message = "cannot assign to expression";
+    error.ErrorID = ErrorCodes::Semantic::InvalidAssignment;
+    Diags.report(error);
     return false;
   }
   
   if (valueType) {
     if (!isTypeCompatible(valueType, varType)) {
-      Diags.report(DiagLevel::Error, "Cannot assign '" + valueType->Name + "' to variable of type '" + varType->Name + "'", SourceLocation(), currentFilename);
+      Diags.report(diag::typeMismatch(varType->Name, valueType->Name, SourceLocation(), currentFilename));
       return false;
     }
   }
@@ -718,7 +778,7 @@ bool Sema::visit(IdentifierExpr* ident) {
   
   auto type = lookupSymbol(ident->Name);
   if (!type) {
-    Diags.report(DiagLevel::Error, "Use of undefined variable '" + ident->Name + "'", SourceLocation(), currentFilename);
+    Diags.report(diag::undefinedVariable(ident->Name, SourceLocation(), currentFilename));
     return false;
   }
   
@@ -793,7 +853,12 @@ bool Sema::visit(ArrayLiteralExpr* lit) {
     }
     
     if (!isTypeCompatible(currentType, elemType)) {
-      Diags.report(DiagLevel::Error, "Array elements must have the same type", SourceLocation(), currentFilename);
+      DiagnosticError error;
+      error.Level = DiagLevel::Error;
+      error.Category = ErrorCategory::Type;
+      error.Message = "array elements must have the same type";
+      error.ErrorID = ErrorCodes::Type::CannotConvert;
+      Diags.report(error);
       return false;
     }
   }
@@ -823,7 +888,12 @@ bool Sema::visit(ArrayIndexExpr* expr) {
   }
   
   if (!indexType->isInteger()) {
-    Diags.report(DiagLevel::Error, "Array index must be of integer type", SourceLocation(), currentFilename);
+    DiagnosticError error;
+    error.Level = DiagLevel::Error;
+    error.Category = ErrorCategory::Type;
+    error.Message = "array index must be of integer type";
+    error.ErrorID = ErrorCodes::Type::CannotConvert;
+    Diags.report(error);
     return false;
   }
   
@@ -856,9 +926,9 @@ bool Sema::visit(OptionalUnwrapExpr* expr) {
   
   if (!targetType->isOptional()) {
     if (expr->IsForceUnwrap) {
-      Diags.report(DiagLevel::Error, "Cannot force unwrap non-optional value", expr->Loc, currentFilename);
+      Diags.report(diag::invalidForceUnwrap(expr->Loc, currentFilename));
     } else {
-      Diags.report(DiagLevel::Error, "Cannot use optional chaining on non-optional value", expr->Loc, currentFilename);
+      Diags.report(diag::invalidOptionalChain(expr->Loc, currentFilename));
     }
     return false;
   }
@@ -886,7 +956,7 @@ bool Sema::visit(OptionalChainExpr* expr) {
   }
   
   if (!targetType->isOptional()) {
-    Diags.report(DiagLevel::Error, "Cannot use optional chaining on non-optional value", expr->Loc, currentFilename);
+    Diags.report(diag::invalidOptionalChain(expr->Loc, currentFilename));
     return false;
   }
   
@@ -912,7 +982,15 @@ bool Sema::visit(IfLetStmt* stmt) {
   }
   
   if (!optionalType->isOptional()) {
-    Diags.report(DiagLevel::Error, "if let requires an optional value", stmt->OptionalExpr->Loc, currentFilename);
+    DiagnosticError error;
+    error.Level = DiagLevel::Error;
+    error.Category = ErrorCategory::Type;
+    error.Message = "if let requires an optional value";
+    error.ErrorID = ErrorCodes::Type::InvalidOptional;
+    error.Line = stmt->OptionalExpr->Loc.Line;
+    error.Column = stmt->OptionalExpr->Loc.Col;
+    error.FileName = currentFilename;
+    Diags.report(error);
     return false;
   }
   
@@ -948,7 +1026,15 @@ bool Sema::visit(GuardStmt* stmt) {
   }
   
   if (!optionalType->isOptional()) {
-    Diags.report(DiagLevel::Error, "guard let requires an optional value", stmt->OptionalExpr->Loc, currentFilename);
+    DiagnosticError error;
+    error.Level = DiagLevel::Error;
+    error.Category = ErrorCategory::Type;
+    error.Message = "guard let requires an optional value";
+    error.ErrorID = ErrorCodes::Type::InvalidOptional;
+    error.Line = stmt->OptionalExpr->Loc.Line;
+    error.Column = stmt->OptionalExpr->Loc.Col;
+    error.FileName = currentFilename;
+    Diags.report(error);
     return false;
   }
   
