@@ -8,6 +8,7 @@
 #include "xwift/stdlib/HTTP/HTTP.h"
 #include "xwift/stdlib/JSON/JSON.h"
 #include "xwift/stdlib/Terminal/Terminal.h"
+#include "xwift/AST/Module.h"
 #include <map>
 #include <iostream>
 #include <sstream>
@@ -21,9 +22,34 @@
 
 namespace xwift {
 
+class ObjectValue {
+public:
+  std::string ClassName;
+  std::map<std::string, Value> Properties;
+  std::map<std::string, std::function<Value(std::vector<Value>)>> Methods;
+  bool IsStruct;
+  
+  ObjectValue(const std::string& className, bool isStruct = false)
+    : ClassName(className), IsStruct(isStruct) {}
+  
+  ObjectValue(const ObjectValue& other)
+    : ClassName(other.ClassName), Properties(other.Properties), 
+      Methods(other.Methods), IsStruct(other.IsStruct) {}
+  
+  ObjectValue& operator=(const ObjectValue& other) {
+    if (this != &other) {
+      ClassName = other.ClassName;
+      Properties = other.Properties;
+      Methods = other.Methods;
+      IsStruct = other.IsStruct;
+    }
+    return *this;
+  }
+};
+
 class Value {
 private:
-  std::variant<std::monostate, int64_t, double, std::string, bool, std::vector<Value>> data;
+  std::variant<std::monostate, int64_t, double, std::string, bool, std::vector<Value>, ObjectValue> data;
   
 public:
   Value() : data(std::monostate()) {}
@@ -32,9 +58,14 @@ public:
   Value(const std::string& val) : data(val) {}
   Value(bool val) : data(val) {}
   Value(const std::vector<Value>& val) : data(val) {}
+  Value(const ObjectValue& val) : data(val) {}
   
   bool isNil() const {
     return std::holds_alternative<std::monostate>(data);
+  }
+  
+  bool isObject() const {
+    return std::holds_alternative<ObjectValue>(data);
   }
   
   template<typename T>
@@ -77,12 +108,20 @@ public:
   std::vector<std::map<std::string, Value>> ScopeStack;
   std::map<std::string, std::function<Value(std::vector<Value>)>> Functions;
   std::map<std::string, FuncDecl*> UserFunctions;
+  std::map<std::string, ClassDecl*> Classes;
+  std::map<std::string, StructDecl*> Structs;
+  std::map<std::string, PropertyDecl*> Properties;
+  std::map<std::string, MethodDecl*> Methods;
+  std::map<std::string, ConstructorDecl*> Constructors;
   std::vector<std::unique_ptr<Program>> LoadedPrograms;
+  ModuleManager ModuleMgr;
+  std::string BasePath;
   size_t MaxSteps = 100000;
   size_t CurrentStep = 0;
   bool HasReturn = false;
   Value ReturnValue;
   std::string currentFilename = "";
+  ObjectValue* CurrentObject = nullptr;
   
   void setFilename(const std::string& filename) {
     currentFilename = filename;
@@ -1164,7 +1203,6 @@ public:
   void setBasePath(const std::string& path) { BasePath = path; }
   
 private:
-  std::string BasePath = ".";
   void runDecl(Decl* decl) {
     if (auto importDecl = dynamic_cast<ImportDecl*>(decl)) {
       loadModule(importDecl->ModuleName);
@@ -1180,59 +1218,47 @@ private:
       }
     } else if (auto classDecl = dynamic_cast<ClassDecl*>(decl)) {
       runClassDecl(classDecl);
+    } else if (auto structDecl = dynamic_cast<StructDecl*>(decl)) {
+      runStructDecl(structDecl);
     }
   }
   
   void loadModule(const std::string& moduleName) {
-    auto it = LoadedModules.find(moduleName);
-    if (it != LoadedModules.end()) {
+    auto module = ModuleMgr.loadModule(moduleName, BasePath);
+    if (!module) {
       return;
     }
     
-    LoadedModules.insert(moduleName);
-    
-    std::vector<std::string> searchPaths = {
-      BasePath + "/lib/" + moduleName + ".xw",
-      BasePath + "/" + moduleName + ".xw", 
-      BasePath + "/test/" + moduleName + ".xw",
-      "lib/" + moduleName + ".xw",
-      moduleName + ".xw"
-    };
-    
-    std::string filename;
-    std::ifstream file;
-    for (const auto& path : searchPaths) {
-      file.open(path);
-      if (file.is_open()) {
-        filename = path;
-        break;
-      }
-    }
-    
-    if (!file.is_open()) {
-      return;
-    }
-    
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    std::string source = buffer.str();
-    
-    Lexer lexer(source);
-    SyntaxParser parser(lexer);
-    auto program = parser.parseProgram();
-    
-    LoadedPrograms.push_back(std::move(program));
-    
-    for (auto& decl : LoadedPrograms.back()->Declarations) {
+    for (auto& decl : module->Declarations) {
       runDecl(decl.get());
     }
   }
   
-  std::set<std::string> LoadedModules;
-  
   void runClassDecl(ClassDecl* cls) {
+    Classes[cls->Name] = cls;
+    
     for (auto& member : cls->Members) {
-      runDecl(member.get());
+      if (auto propDecl = dynamic_cast<PropertyDecl*>(member.get())) {
+        Properties[cls->Name + "." + propDecl->Name] = propDecl;
+      } else if (auto methodDecl = dynamic_cast<MethodDecl*>(member.get())) {
+        Methods[cls->Name + "." + methodDecl->Name] = methodDecl;
+      } else if (auto ctorDecl = dynamic_cast<ConstructorDecl*>(member.get())) {
+        Constructors[cls->Name] = ctorDecl;
+      }
+    }
+  }
+  
+  void runStructDecl(StructDecl* st) {
+    Structs[st->Name] = st;
+    
+    for (auto& member : st->Members) {
+      if (auto propDecl = dynamic_cast<PropertyDecl*>(member.get())) {
+        Properties[st->Name + "." + propDecl->Name] = propDecl;
+      } else if (auto methodDecl = dynamic_cast<MethodDecl*>(member.get())) {
+        Methods[st->Name + "." + methodDecl->Name] = methodDecl;
+      } else if (auto ctorDecl = dynamic_cast<ConstructorDecl*>(member.get())) {
+        Constructors[st->Name] = ctorDecl;
+      }
     }
   }
   
@@ -1693,6 +1719,61 @@ private:
         }
         return Value(int64_t(0));
       }
+    }
+    
+    if (auto memberAccess = dynamic_cast<MemberAccessExpr*>(expr)) {
+      Value obj = evaluate(memberAccess->Object.get());
+      if (auto objVal = obj.get<ObjectValue>()) {
+        auto it = objVal->Properties.find(memberAccess->MemberName);
+        if (it != objVal->Properties.end()) {
+          return it->second;
+        }
+      }
+      return Value();
+    }
+    
+    if (auto ctorCall = dynamic_cast<ConstructorCallExpr*>(expr)) {
+      ObjectValue obj(ctorCall->ClassName, Structs.find(ctorCall->ClassName) != Structs.end());
+      
+      auto ctorIt = Constructors.find(ctorCall->ClassName);
+      if (ctorIt != Constructors.end()) {
+        auto* ctor = ctorIt->second;
+        enterScope();
+        for (size_t i = 0; i < ctor->Params.size() && i < ctorCall->Args.size(); i++) {
+          setVariable(ctor->Params[i].first, evaluate(ctorCall->Args[i].get()));
+        }
+        Value savedObj = Value(obj);
+        CurrentObject = &obj;
+        if (ctor->Body) {
+          auto* block = dynamic_cast<BlockStmt*>(ctor->Body.get());
+          if (block) {
+            runBlock(block);
+          }
+        }
+        CurrentObject = nullptr;
+        exitScope();
+        return savedObj;
+      }
+      
+      return Value(obj);
+    }
+    
+    if (auto superExpr = dynamic_cast<SuperExpr*>(expr)) {
+      if (CurrentObject) {
+        auto classIt = Classes.find(CurrentObject->ClassName);
+        if (classIt != Classes.end() && !classIt->second->SuperClass.empty()) {
+          ObjectValue superObj(classIt->second->SuperClass, false);
+          return Value(superObj);
+        }
+      }
+      return Value();
+    }
+    
+    if (auto thisExpr = dynamic_cast<ThisExpr*>(expr)) {
+      if (CurrentObject) {
+        return Value(*CurrentObject);
+      }
+      return Value();
     }
     
     return Value(int64_t(0));

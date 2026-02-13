@@ -47,6 +47,11 @@ public:
   bool visit(OptionalChainExpr* expr);
   bool visit(IfLetStmt* stmt);
   bool visit(GuardStmt* stmt);
+  bool visit(ClassDecl* cls);
+  bool visit(StructDecl* st);
+  bool visit(PropertyDecl* prop);
+  bool visit(MethodDecl* method);
+  bool visit(ConstructorDecl* ctor);
   
   std::shared_ptr<Type> getExprType(Expr* expr);
   bool isTypeCompatible(std::shared_ptr<Type> from, std::shared_ptr<Type> to);
@@ -55,6 +60,8 @@ private:
   DiagnosticEngine& Diags;
   std::vector<std::map<std::string, std::shared_ptr<Type>>> ScopeStack;
   std::map<std::string, FuncDecl*> FunctionTable;
+  std::map<std::string, ClassDecl*> ClassTable;
+  std::map<std::string, StructDecl*> StructTable;
   std::set<std::string> BuiltinFunctions;
   std::shared_ptr<Type> CurrentFuncReturnType;
   std::string currentFilename;

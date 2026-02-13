@@ -1,0 +1,47 @@
+struct Point {
+    var x: Int
+    var y: Int
+}
+
+class Animal {
+    var name: String
+    
+    func makeSound() -> String {
+        return "Some sound"
+    }
+}
+
+class Dog extends Animal {
+    var breed: String
+    
+    func makeSound() -> String {
+        return "Woof!"
+    }
+    
+    func bark() -> String {
+        return "Bark bark!"
+    }
+}
+
+func main() {
+    let p1 = Point()
+    p1.x = 10
+    p1.y = 20
+    
+    println("Point 1: (" + toString(p1.x) + ", " + toString(p1.y) + ")")
+    
+    let p2 = p1
+    p2.x = 30
+    
+    println("Point 1: (" + toString(p1.x) + ", " + toString(p1.y) + ")")
+    println("Point 2: (" + toString(p2.x) + ", " + toString(p2.y) + ")")
+    
+    let dog = Dog()
+    dog.name = "Buddy"
+    dog.breed = "Golden Retriever"
+    
+    println("Dog name: " + dog.name)
+    println("Dog breed: " + dog.breed)
+    println("Dog sound: " + dog.makeSound())
+    println("Dog bark: " + dog.bark())
+}

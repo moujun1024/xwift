@@ -296,7 +296,23 @@ bool Sema::visit(Decl* decl) {
   }
   
   if (auto cls = dynamic_cast<ClassDecl*>(decl)) {
-    return true;
+    return visit(cls);
+  }
+  
+  if (auto st = dynamic_cast<StructDecl*>(decl)) {
+    return visit(st);
+  }
+  
+  if (auto prop = dynamic_cast<PropertyDecl*>(decl)) {
+    return visit(prop);
+  }
+  
+  if (auto method = dynamic_cast<MethodDecl*>(decl)) {
+    return visit(method);
+  }
+  
+  if (auto ctor = dynamic_cast<ConstructorDecl*>(decl)) {
+    return visit(ctor);
   }
   
   return true;
@@ -1086,6 +1102,186 @@ bool Sema::visit(GuardStmt* stmt) {
   exitScope();
   
   visit(stmt->ElseBranch.get());
+  
+  return true;
+}
+
+bool Sema::visit(ClassDecl* cls) {
+  if (!cls) {
+    return false;
+  }
+  
+  if (ClassTable.find(cls->Name) != ClassTable.end()) {
+    DiagnosticError error;
+    error.Level = DiagLevel::Error;
+    error.Category = ErrorCategory::Semantic;
+    error.Message = "redefinition of class '" + cls->Name + "'";
+    error.ErrorID = ErrorCodes::Semantic::Redefinition;
+    error.Line = 0;
+    error.Column = 0;
+    error.FileName = currentFilename;
+    Diags.report(error);
+    return false;
+  }
+  
+  ClassTable[cls->Name] = cls;
+  
+  enterScope();
+  
+  for (auto& member : cls->Members) {
+    if (!visit(member.get())) {
+      exitScope();
+      return false;
+    }
+  }
+  
+  exitScope();
+  
+  return true;
+}
+
+bool Sema::visit(StructDecl* st) {
+  if (!st) {
+    return false;
+  }
+  
+  if (StructTable.find(st->Name) != StructTable.end()) {
+    DiagnosticError error;
+    error.Level = DiagLevel::Error;
+    error.Category = ErrorCategory::Semantic;
+    error.Message = "redefinition of struct '" + st->Name + "'";
+    error.ErrorID = ErrorCodes::Semantic::Redefinition;
+    error.Line = 0;
+    error.Column = 0;
+    error.FileName = currentFilename;
+    Diags.report(error);
+    return false;
+  }
+  
+  StructTable[st->Name] = st;
+  
+  enterScope();
+  
+  for (auto& member : st->Members) {
+    if (!visit(member.get())) {
+      exitScope();
+      return false;
+    }
+  }
+  
+  exitScope();
+  
+  return true;
+}
+
+bool Sema::visit(PropertyDecl* prop) {
+  if (!prop) {
+    return false;
+  }
+  
+  auto type = lookupType(prop->Type);
+  if (!type) {
+    DiagnosticError error;
+    error.Level = DiagLevel::Error;
+    error.Category = ErrorCategory::Type;
+    error.Message = "unknown type '" + prop->Type + "'";
+    error.ErrorID = ErrorCodes::Type::InvalidType;
+    error.Line = 0;
+    error.Column = 0;
+    error.FileName = currentFilename;
+    Diags.report(error);
+    return false;
+  }
+  
+  addSymbol(prop->Name, type);
+  
+  if (prop->Initializer) {
+    visit(prop->Initializer.get());
+  }
+  
+  return true;
+}
+
+bool Sema::visit(MethodDecl* method) {
+  if (!method) {
+    return false;
+  }
+  
+  auto returnType = lookupType(method->ReturnType);
+  if (!returnType) {
+    DiagnosticError error;
+    error.Level = DiagLevel::Error;
+    error.Category = ErrorCategory::Type;
+    error.Message = "unknown return type '" + method->ReturnType + "'";
+    error.ErrorID = ErrorCodes::Type::InvalidType;
+    error.Line = 0;
+    error.Column = 0;
+    error.FileName = currentFilename;
+    Diags.report(error);
+    return false;
+  }
+  
+  enterScope();
+  
+  for (auto& param : method->Params) {
+    auto paramType = lookupType(param.second);
+    if (!paramType) {
+      DiagnosticError error;
+      error.Level = DiagLevel::Error;
+      error.Category = ErrorCategory::Type;
+      error.Message = "unknown parameter type '" + param.second + "'";
+      error.ErrorID = ErrorCodes::Type::InvalidType;
+      error.Line = 0;
+      error.Column = 0;
+      error.FileName = currentFilename;
+      Diags.report(error);
+      exitScope();
+      return false;
+    }
+    
+    addSymbol(param.first, paramType);
+  }
+  
+  if (method->Body) {
+    visit(method->Body.get());
+  }
+  
+  exitScope();
+  
+  return true;
+}
+
+bool Sema::visit(ConstructorDecl* ctor) {
+  if (!ctor) {
+    return false;
+  }
+  
+  enterScope();
+  
+  for (auto& param : ctor->Params) {
+    auto paramType = lookupType(param.second);
+    if (!paramType) {
+      DiagnosticError error;
+      error.Level = DiagLevel::Error;
+      error.Category = ErrorCategory::Type;
+      error.Message = "unknown parameter type '" + param.second + "'";
+      error.ErrorID = ErrorCodes::Type::InvalidType;
+      error.Line = 0;
+      error.Column = 0;
+      error.FileName = currentFilename;
+      Diags.report(error);
+      exitScope();
+      return false;
+    }
+    
+    addSymbol(param.first, paramType);
+  }
+  
+  if (ctor->Body) {
+    visit(ctor->Body.get());
+  }
+  
+  exitScope();
   
   return true;
 }

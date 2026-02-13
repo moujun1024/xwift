@@ -1,6 +1,8 @@
 set(XWIFT_AST_SOURCES
   ${CMAKE_SOURCE_DIR}/lib/AST/Decl.cpp
   ${CMAKE_SOURCE_DIR}/lib/AST/Type.cpp
+  ${CMAKE_SOURCE_DIR}/lib/AST/Module.cpp
+  ${CMAKE_SOURCE_DIR}/lib/AST/Optimizer.cpp
 )
 
 add_library(XWiftAST STATIC ${XWIFT_AST_SOURCES})

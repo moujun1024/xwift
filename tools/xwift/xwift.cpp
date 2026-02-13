@@ -1,6 +1,7 @@
 #include "xwift/Frontend/Frontend.h"
 #include "xwift/Basic/Diagnostic.h"
 #include "xwift/Sema/Sema.h"
+#include "xwift/AST/Optimizer.h"
 #include <iostream>
 #include <memory>
 #include <string>
@@ -108,6 +109,9 @@ public:
       if (diag.hasErrors()) {
         return 1;
       }
+      
+      Optimizer optimizer;
+      optimizer.optimize(program.get());
       
       Interpreter interpreter(diag);
       interpreter.setFilename(filename);

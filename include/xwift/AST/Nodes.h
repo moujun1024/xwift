@@ -239,9 +239,86 @@ public:
 class ClassDecl : public Decl {
 public:
   std::string Name;
+  std::string SuperClass;
   std::vector<DeclPtr> Members;
-  ClassDecl(const std::string& name) : Name(name) {}
+  ClassDecl(const std::string& name, const std::string& superClass = "") 
+    : Name(name), SuperClass(superClass) {}
   void addMember(DeclPtr member) { Members.push_back(std::move(member)); }
+};
+
+class StructDecl : public Decl {
+public:
+  std::string Name;
+  std::vector<DeclPtr> Members;
+  StructDecl(const std::string& name) : Name(name) {}
+  void addMember(DeclPtr member) { Members.push_back(std::move(member)); }
+};
+
+class PropertyDecl : public Decl {
+public:
+  std::string Name;
+  std::string Type;
+  ExprPtr Initializer;
+  std::string WillSet;
+  std::string DidSet;
+  PropertyDecl(const std::string& name, const std::string& type, ExprPtr init = nullptr)
+    : Name(name), Type(type), Initializer(std::move(init)) {}
+};
+
+class MethodDecl : public Decl {
+public:
+  std::string Name;
+  std::string ReturnType;
+  std::vector<std::pair<std::string, std::string>> Params;
+  StmtPtr Body;
+  bool IsVirtual;
+  bool IsOverride;
+  MethodDecl(const std::string& name, const std::string& retType, StmtPtr body)
+    : Name(name), ReturnType(retType), Body(std::move(body)), 
+      IsVirtual(false), IsOverride(false) {}
+  void addParam(const std::string& name, const std::string& type) {
+    Params.push_back({name, type});
+  }
+};
+
+class ConstructorDecl : public Decl {
+public:
+  std::vector<std::pair<std::string, std::string>> Params;
+  StmtPtr Body;
+  ConstructorDecl(StmtPtr body) : Body(std::move(body)) {}
+  void addParam(const std::string& name, const std::string& type) {
+    Params.push_back({name, type});
+  }
+};
+
+class MemberAccessExpr : public Expr {
+public:
+  ExprPtr Object;
+  std::string MemberName;
+  SourceLocation Loc;
+  MemberAccessExpr(ExprPtr obj, const std::string& member, SourceLocation loc = SourceLocation())
+    : Object(std::move(obj)), MemberName(member), Loc(loc) {}
+};
+
+class ConstructorCallExpr : public Expr {
+public:
+  std::string ClassName;
+  std::vector<ExprPtr> Args;
+  SourceLocation Loc;
+  ConstructorCallExpr(const std::string& className, std::vector<ExprPtr> args, SourceLocation loc = SourceLocation())
+    : ClassName(className), Args(std::move(args)), Loc(loc) {}
+};
+
+class SuperExpr : public Expr {
+public:
+  SourceLocation Loc;
+  SuperExpr(SourceLocation loc = SourceLocation()) : Loc(loc) {}
+};
+
+class ThisExpr : public Expr {
+public:
+  SourceLocation Loc;
+  ThisExpr(SourceLocation loc = SourceLocation()) : Loc(loc) {}
 };
 
 class Program : public ASTNode {
